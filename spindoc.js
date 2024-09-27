@@ -4,8 +4,8 @@ const level = {
     grid: [
         [1, 1, 1, 1, 1, 2, 1],
         [1, 1, 1, 1, 1, 2, 1],
-        [0, 1, 1, 0, 1, 1, 0],
-        [1, 3, 1, 1, 1, 1, 1],
+        [1, 1, 1, 0, 1, 1, 1],
+        [1, 3, 11, 11, 11, 1, 1],
         [1, 3, 1, 0, 1, 1, 9]
     ],
     wands: [
@@ -24,25 +24,33 @@ const level = {
             y: 3,
             type: 3
         }
+    ],
+    walls: [
+        { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 }
     ]
 }
 
 const Color = {
-    WandWhite: "rgb(255 255 255)",
-    WandRed: "rgb(240 180 180)",
-    WandBlue: "rgb(180 180 240)",
-    AnchorWhite: "rgb(200 200 200)",
-    AnchorRed: "rgb(220 160 160)",
-    AnchorBlue: "rgb(160 160 220)",
-    Exit: "rgb(240 240 160)"
+    WandWhite: "255,255,255",
+    WandRed: "240,180,180",
+    WandBlue: "180,180,240",
+    AnchorWhite: "200,200,200",
+    AnchorRed: "220,160,160",
+    AnchorBlue: "160,160,220",
+    Wall: "100,100,100",
+    Exit: "240,240,160"
 }
 
 class Anchor {
-    constructor(x, y, type) {
-        this.x = x;
-        this.y = y;
+    constructor(x, y, type, ephemeral = 0) {
+        this.x = SCALE * (x + 2);
+        this.y = SCALE * (y + 2);
         this.type = type;
-        this.color = this.getColor();
+        this.ephemeral = ephemeral;
+        this.ephlock = false;
+        this.fcolor = this.getfColor();
+        this.scolor = this.getsColor();
+
     }
     getColor() {
         if (this.type == 2) {
@@ -55,15 +63,25 @@ class Anchor {
             return Color.AnchorWhite;
         }
     }
+    toggleEph() {
+        this.ephlock = true;
+        this.fcolor = `rgb(${Color.Wall})`
+    }
+    getfColor() {
+        return this.ephemeral == 1 ? `rgba(${this.getColor()},0)` : `rgb(${this.getColor()})`;
+    }
+    getsColor() {
+        return `rgb(${this.getColor()})`
+    }
 }
 
 class Wand {
     // fixme, x and y args should be modified based on scale and offset
     constructor (x, y, type, angle = 0, speed = 1.5) {
-        this.x = x;
-        this.y = y;
+        this.x = SCALE * (x + 2);
+        this.y = SCALE * (y + 2);
         this.type = type;
-        this.color = this.getColor();
+        this.color = `rgb(${this.getColor()})`;
         this.width = this.getWidth();
         this.angle = angle;
         this.speed = speed;
@@ -87,7 +105,7 @@ class Wand {
         } else if (this.type == 3) {
             return Color.WandBlue;
         } else {
-            return "rgb(0 255 0)"; // error
+            return "0 255 0"; // error
         }
     }
     getWidth() {
@@ -99,31 +117,48 @@ class Wand {
             return 8; // error
         }
     }
-    getDest() {
-        return destCoord(this.x, this.y, this.angle, this.length);
+    getDest(short = 0) {
+        return destCoord(this.x, this.y, this.angle, this.length - short);
     }
     setAnchor(x, y) {
         this.x = x;
         this.y = y;
     }
-    stepAngle() {
-        this.angle = this.angle + this.speed - (this.angle > 360 ? 360 : 0);
+    stepAngle(n = 1) {
+        this.angle = this.angle + (this.speed * n) - (this.angle > 360 ? 360 : 0);
     }
     latchAngle() {
         this.angle += (this.angle <= 180) ? 180 : -180;
     }
-    reverse() {
+    reverse(n = 1) {
         this.speed *= -1;
+        this.stepAngle(n)
+    }
+}
+
+class Wall {
+    constructor(sx, sy, dx, dy) {
+        this.x = ~~(SCALE * (sx + 2));
+        this.y = ~~(SCALE * (sy + 2));
+        this.x2 = ~~(SCALE * (dx + 2));
+        this.y2 = ~~(SCALE * (dy + 2));
+        this.color = this.getColor();
+    }
+    getColor() {
+        return `rgb(${Color.Wall})`;
+    }
+    getDest() {
+        return { x: this.x2, y: this.y2 };
     }
 }
 
 const Sounds = {
-    bounce: new Audio('snd/bounce.wav'),
-    latch: new Audio('snd/latch.wav'),
-    pass: new Audio('snd/pass.wav'),
-    switch: new Audio('snd/switch.wav'),
-    win: new Audio('snd/win.wav'),
-    lose: new Audio('snd/lose.wav')
+    bounce: new Audio('snd/bounce.ogg'),
+    latch: new Audio('snd/latch.ogg'),
+    pass: new Audio('snd/pass.ogg'),
+    switch: new Audio('snd/switch.ogg'),
+    win: new Audio('snd/win.ogg'),
+    lose: new Audio('snd/lose.ogg')
 }
 
 $(document).ready(function() {
@@ -172,32 +207,48 @@ var gameArea = {
 
         this.anchors = [];
         this.wands = [];
+        this.walls = [];
         this.load(level);
         
     },
     load: function(l) {
-        while (this.anchors.length > 0) {
-            this.anchors.pop();
-        }
-        while (this.wands.length > 0) {
-            this.wands.pop();
-        }
+        // clear existing stacks
+        while (this.anchors.length > 0) { this.anchors.pop(); }
+        while (this.wands.length > 0) { this.wands.pop(); }
+        while (this.walls.length > 0) { this.walls.pop(); }
+
         for (var y = 0; y < l.grid.length; y++) {
             for (var x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    this.anchors.push(new Anchor((x + 2) * SCALE, (y + 2) * SCALE, l.grid[y][x]));
+                    // x, y, type, ephemeral
+                    this.anchors.push(new Anchor(x, y, l.grid[y][x] % 10, ~~(l.grid[y][x] / 10)));
                 }
             }
         }
         for (let i = 0; i < l.wands.length; i++) {
             let w = l.wands[i];
-            this.wands.push(new Wand(SCALE * (w.x + 2), SCALE * (w.y + 2), w.type));
+            this.wands.push(new Wand(w.x, w.y, w.type));
+        }
+        for (let i = 0; i < l.walls.length; i++) {
+            let w = l.walls[i];
+            this.walls.push(new Wall(w.x1, w.y1, w.x2, w.y2));
         }
     },
     clear: function() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
+        for (let i = 0; i < this.walls.length; i++) {
+            this.context.strokeStyle = this.walls[i].color;
+            this.context.lineWidth = 3;
+            this.context.beginPath();
+            this.context.moveTo(this.walls[i].x, this.walls[i].y);
+            this.context.lineTo(this.walls[i].x2, this.walls[i].y2);
+            this.context.closePath();
+            this.context.stroke();
+
+        }
+
         for (let i = 0; i < this.wands.length; i++) {
             let dest = this.wands[i].getDest();
             this.context.beginPath();
@@ -210,12 +261,16 @@ var gameArea = {
         }
 
         for (let i = 0; i < this.anchors.length; i++) {
-            this.context.fillStyle = this.anchors[i].color;
+            this.context.fillStyle = this.anchors[i].fcolor;
             this.context.beginPath();
             this.context.arc(this.anchors[i].x, this.anchors[i].y, 4, 0, 2 * Math.PI);
             this.context.closePath();
             this.context.fill();
-        }
+            if (this.anchors[i].ephemeral == 1) {
+                this.context.strokeStyle = this.anchors[i].scolor;
+                this.context.stroke();
+            }
+        } 
     },
     restart: function() {
         clearInterval(this.interval);
@@ -239,6 +294,7 @@ function startGame() {
     gameArea.start();
 }
 
+// Are these two vertices close?
 function isClose(v1, v2) {
     return (Math.abs(v1.x - v2.x) < 1.3 && Math.abs(v1.y - v2.y) < 1.3)
 }
@@ -246,8 +302,7 @@ function isClose(v1, v2) {
 function ccw(a, b, c) {
     return ((c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x))
 }
-function intersect(s1, s2) {
-    let [d1, d2] = [s1.getDest(), s2.getDest()];
+function intersect(s1, d1, s2, d2) {
     return (ccw(s1, s2, d2) != ccw(d1, s2, d2) && ccw(s1, d1, s2) != ccw(s1, d1, d2));
 }
 
@@ -256,20 +311,41 @@ function updateGameArea() {
         gameArea.wands[i].stepAngle();
     }
 
-    if (intersect(gameArea.wands[0], gameArea.wands[1])) {
-        Sounds.lose.play();
-        gameArea.restart();
+    for (let i = 1; i < gameArea.wands.length; i++) {
+        // These calls to getDest reduce the length of the wand to limit false hits
+        if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(2), gameArea.wands[i], gameArea.wands[i].getDest(2))) {
+            Sounds.lose.play();
+            gameArea.restart();
+            console.log("Intersected a wand!");
+        }
     }
+
+    for (let i = 0; i < gameArea.walls.length; i++) {
+        if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(), gameArea.walls[i], gameArea.walls[i].getDest())) {
+            Sounds.bounce.play();
+            // This call moves the wand back quickly to avoid clipping
+            gameArea.wands[0].reverse(2);
+            console.log("Wall bounce!");
+        }
+    }
+
 
     let hasTarget = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[0].getDest()));
     if (hasTarget > -1) {
         let target = gameArea.anchors[hasTarget];
         if (gameArea.wands[0].controls.swing || gameArea.wands[0].controls.latch) {
+            let fromEph = gameArea.anchors.findIndex(v => v.ephlock);
             if (gameArea.anchors[hasTarget].type == 9) {
                 Sounds.win.play();
                 gameArea.gameOver();
             }
             else {
+                if (fromEph > -1) {
+                    gameArea.anchors.splice(fromEph, 1);
+                }
+                if (target.ephemeral == 1 && target.ephlock == false) {
+                    target.toggleEph();
+                }
                 Sounds.latch.play();
                 gameArea.wands[0].setAnchor(target.x, target.y);
                 gameArea.wands[0].latchAngle();
@@ -300,8 +376,6 @@ function updateGameArea() {
             }
         }
     }
-
-
 
     gameArea.clear();
     gameArea.draw();
