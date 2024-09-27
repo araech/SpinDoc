@@ -1,12 +1,22 @@
 const SCALE = 64;
+const MAX_HEIGHT = 7;
+const MAX_WIDTH  = 9;
+
+
+const MASK = {
+    TYPE: 15,
+    EPHEM: 16
+}
 
 const level = {
     grid: [
-        [1, 1, 1, 1, 1, 2, 1],
-        [1, 1, 1, 1, 1, 2, 1],
-        [1, 1, 1, 0, 1, 1, 1],
-        [1, 3, 11, 11, 11, 1, 1],
-        [1, 3, 1, 0, 1, 1, 9]
+        [1, 1, 1, 1, 1, 2, 1, 1, 0],
+        [1, 1, 1, 1, 1, 2, 1, 1, 1],
+        [1, 1, 1, 0, 1, 2, 1, 1, 1],
+        [1, 1, 17, 17, 17, 2, 1, 1, 1],
+        [3, 3, 3, 3, 1, 2, 1, 1, 1],
+        [1, 1, 1, 3, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 0, 1, 1, 9]
     ],
     wands: [
         {
@@ -20,13 +30,19 @@ const level = {
             type: 2
         },
         {
-            x: 1,
+            x: 5,
             y: 3,
+            type: 2
+        },
+        {
+            x: 1,
+            y: 4,
             type: 3
         }
     ],
     walls: [
-        { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 }
+        { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 },
+        { x1: 6.5, y1: 1.2, x2: 6.5, y2: 3.8 }
     ]
 }
 
@@ -42,9 +58,9 @@ const Color = {
 }
 
 class Anchor {
-    constructor(x, y, type, ephemeral = 0) {
-        this.x = SCALE * (x + 2);
-        this.y = SCALE * (y + 2);
+    constructor(x, y, type, ephemeral) {
+        this.x = SCALE * x;
+        this.y = SCALE * y;
         this.type = type;
         this.ephemeral = ephemeral;
         this.ephlock = false;
@@ -68,7 +84,7 @@ class Anchor {
         this.fcolor = `rgb(${Color.Wall})`
     }
     getfColor() {
-        return this.ephemeral == 1 ? `rgba(${this.getColor()},0)` : `rgb(${this.getColor()})`;
+        return this.ephemeral == MASK.EPHEM ? `rgba(${this.getColor()},0)` : `rgb(${this.getColor()})`;
     }
     getsColor() {
         return `rgb(${this.getColor()})`
@@ -78,8 +94,8 @@ class Anchor {
 class Wand {
     // fixme, x and y args should be modified based on scale and offset
     constructor (x, y, type, angle = 0, speed = 1.5) {
-        this.x = SCALE * (x + 2);
-        this.y = SCALE * (y + 2);
+        this.x = SCALE * x;
+        this.y = SCALE * y;
         this.type = type;
         this.color = `rgb(${this.getColor()})`;
         this.width = this.getWidth();
@@ -138,10 +154,10 @@ class Wand {
 
 class Wall {
     constructor(sx, sy, dx, dy) {
-        this.x = ~~(SCALE * (sx + 2));
-        this.y = ~~(SCALE * (sy + 2));
-        this.x2 = ~~(SCALE * (dx + 2));
-        this.y2 = ~~(SCALE * (dy + 2));
+        this.x = ~~(SCALE * sx);
+        this.y = ~~(SCALE * sy);
+        this.x2 = ~~(SCALE * dx);
+        this.y2 = ~~(SCALE * dy);
         this.color = this.getColor();
     }
     getColor() {
@@ -198,18 +214,27 @@ $(document).ready(function() {
 
 var gameArea = {
     canvas: document.createElement("canvas"),
+    bgcanvas: document.createElement("canvas"),
     start: function() {
-        this.canvas.width = SCALE * (level.grid[0].length + 3);
-        this.canvas.height = SCALE * (level.grid.length + 3);
-        this.context = this.canvas.getContext("2d");
-        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.interval = setInterval(updateGameArea, 20);
+        this.canvas.width = SCALE * (MAX_WIDTH + 2);
+        this.canvas.height = SCALE * (MAX_HEIGHT + 2);
+        this.bgcanvas.width = SCALE * (MAX_WIDTH + 3);
+        this.bgcanvas.height = SCALE * (MAX_HEIGHT + 3);
+        this.xos = ~~(SCALE / 2);
+        this.yos = ~~(SCALE / 2);
+        this.ctx = this.canvas.getContext("2d");
+        this.bgctx = this.bgcanvas.getContext("2d");
+        this.canvas.id = "gameui";
+        this.bgcanvas.id = "bgui";
+        document.getElementById("stage").appendChild(this.canvas);
+        document.getElementById("stage").appendChild(this.bgcanvas);
+        this.interval = setInterval(updateGameArea, 25);
 
         this.anchors = [];
         this.wands = [];
         this.walls = [];
         this.load(level);
-        
+        this.drawbg();
     },
     load: function(l) {
         // clear existing stacks
@@ -220,8 +245,7 @@ var gameArea = {
         for (var y = 0; y < l.grid.length; y++) {
             for (var x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    // x, y, type, ephemeral
-                    this.anchors.push(new Anchor(x, y, l.grid[y][x] % 10, ~~(l.grid[y][x] / 10)));
+                    this.anchors.push(new Anchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM));
                 }
             }
         }
@@ -234,53 +258,73 @@ var gameArea = {
             this.walls.push(new Wall(w.x1, w.y1, w.x2, w.y2));
         }
     },
+    offset: function(x, y) {
+        return [x + SCALE + this.xos, y + SCALE + this.yos]
+    },
     clear: function() {
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
         for (let i = 0; i < this.walls.length; i++) {
-            this.context.strokeStyle = this.walls[i].color;
-            this.context.lineWidth = 3;
-            this.context.beginPath();
-            this.context.moveTo(this.walls[i].x, this.walls[i].y);
-            this.context.lineTo(this.walls[i].x2, this.walls[i].y2);
-            this.context.closePath();
-            this.context.stroke();
+            this.ctx.strokeStyle = this.walls[i].color;
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(...this.offset(this.walls[i].x, this.walls[i].y));
+            this.ctx.lineTo(...this.offset(this.walls[i].x2, this.walls[i].y2));
+            this.ctx.closePath();
+            this.ctx.stroke();
 
         }
 
         for (let i = 0; i < this.wands.length; i++) {
             let dest = this.wands[i].getDest();
-            this.context.beginPath();
-            this.context.strokeStyle = this.wands[i].color;
-            this.context.lineWidth = this.wands[i].width;
-            this.context.moveTo(this.wands[i].x, this.wands[i].y);
-            this.context.lineTo(dest.x, dest.y);
-            this.context.closePath();
-            this.context.stroke();
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = this.wands[i].color;
+            this.ctx.lineWidth = this.wands[i].width;
+            this.ctx.moveTo(...this.offset(this.wands[i].x, this.wands[i].y));
+            this.ctx.lineTo(...this.offset(dest.x, dest.y));
+            this.ctx.closePath();
+            this.ctx.stroke();
         }
 
         for (let i = 0; i < this.anchors.length; i++) {
-            this.context.fillStyle = this.anchors[i].fcolor;
-            this.context.beginPath();
-            this.context.arc(this.anchors[i].x, this.anchors[i].y, 4, 0, 2 * Math.PI);
-            this.context.closePath();
-            this.context.fill();
-            if (this.anchors[i].ephemeral == 1) {
-                this.context.strokeStyle = this.anchors[i].scolor;
-                this.context.stroke();
+            this.ctx.fillStyle = this.anchors[i].fcolor;
+            this.ctx.beginPath();
+            this.ctx.arc(...this.offset(this.anchors[i].x, this.anchors[i].y), 4, 0, 2 * Math.PI);
+            this.ctx.closePath();
+            this.ctx.fill();
+            if (this.anchors[i].ephemeral == MASK.EPHEM) {
+                this.ctx.strokeStyle = this.anchors[i].scolor;
+                this.ctx.stroke();
             }
         } 
+    },
+    drawbg: function() {
+        this.bgctx.clearRect(0, 0, this.bgcanvas.width, this.bgcanvas.height);
+        
+        this.bgctx.fillStyle = "#eee";
+        this.bgctx.font = "20px sans-serif";
+        this.bgctx.fontVariantCaps = "small-caps";
+        this.bgctx.letterSpacing = "2px"
+        this.bgctx.textAlign = "left";
+        this.bgctx.textBaseline = "top";
+        this.bgctx.fillText("Spin Doctor", 7, 7);
+        this.bgctx.textAlign = "right";
+        this.bgctx.fillText("Level 1", this.bgcanvas.width - 7, 7)
+        this.bgctx.textBaseline = "bottom";
+        this.bgctx.textAlign = "left";
+        this.bgctx.fillText("Wands: 3", 7, this.bgcanvas.height - 7);
+        this.bgctx.textAlign = "right";
+        this.bgctx.fillText("Score: 1000", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
     restart: function() {
         clearInterval(this.interval);
         this.load(level);
-        this.interval = setInterval(updateGameArea, 20);
+        this.interval = setInterval(updateGameArea, 25);
     },
     gameOver: function () {
         clearInterval(this.interval);
-        this.context.fillStyle = "rgb(255 255 255)";
-        this.context.fillText("GAME OVER", 30, 50);
+        // draw GAME OVER on this.bgctx
     }
 }
 
@@ -312,7 +356,7 @@ function updateGameArea() {
     }
 
     for (let i = 1; i < gameArea.wands.length; i++) {
-        // These calls to getDest reduce the length of the wand to limit false hits
+        // These calls to getDest reduce the length of the wands to limit false hits
         if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(2), gameArea.wands[i], gameArea.wands[i].getDest(2))) {
             Sounds.lose.play();
             gameArea.restart();
@@ -335,15 +379,14 @@ function updateGameArea() {
         let target = gameArea.anchors[hasTarget];
         if (gameArea.wands[0].controls.swing || gameArea.wands[0].controls.latch) {
             let fromEph = gameArea.anchors.findIndex(v => v.ephlock);
-            if (gameArea.anchors[hasTarget].type == 9) {
+            if (target.type == 9) {
                 Sounds.win.play();
                 gameArea.gameOver();
-            }
-            else {
+            } else {
                 if (fromEph > -1) {
                     gameArea.anchors.splice(fromEph, 1);
                 }
-                if (target.ephemeral == 1 && target.ephlock == false) {
+                if (target.ephemeral == MASK.EPHEM && target.ephlock == false) {
                     target.toggleEph();
                 }
                 Sounds.latch.play();
