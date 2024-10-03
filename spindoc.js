@@ -7,7 +7,7 @@ const MASK = {
     EPHEM: 16
 }
 
-const level = {
+const testLevel = {
     grid: [
         [1, 1,  1,  1,  1, 2, 1, 1, 0],
         [1, 1,  1,  1,  1, 2, 1, 1, 5],
@@ -105,7 +105,6 @@ class Anchor {
 }
 
 class Wand {
-    // fixme, x and y args should be modified based on scale and offset
     constructor (x, y, type, angle = 0, speed = 1.5) {
         this.x = SCALE * x;
         this.y = SCALE * y;
@@ -146,7 +145,7 @@ class Wand {
             return 8; // error
         }
     }
-    getDest(short = 0) {
+    dest(short = 0) {
         return destCoord(this.x, this.y, this.angle, this.length - short);
     }
     betweenRights() {
@@ -156,8 +155,8 @@ class Wand {
         this.x = x;
         this.y = y;
     }
-    stepAngle(n = 1) {
-        this.angle = this.angle + (this.speed * n) - (this.angle > 360 ? 360 : 0);
+    stepAngle(n = 1) { // FIXME way to accomplish this with fewer calculations?
+        this.angle = (this.angle + (this.speed * n) + 360) % 360;
     }
     latchAngle() {
         this.angle += (this.angle <= 180) ? 180 : -180;
@@ -179,87 +178,21 @@ class Wall {
     #getColor() {
         return `rgb(${Color.Wall})`;
     }
-    getDest() {
+    dest() {
         return { x: this.x2, y: this.y2 };
     }
 }
 
-const Sounds = {
-    bounce: new Audio('snd/bounce.ogg'),
-    latch: new Audio('snd/latch.ogg'),
-    pass: new Audio('snd/pass.ogg'),
-    switch: new Audio('snd/switch.ogg'),
-    win: new Audio('snd/win.ogg'),
-    lose: new Audio('snd/lose.ogg')
-}
-
-$(document).ready(function() {
-    $('body').on("keydown", event => {
-        if (gameArea.wands < 1) return;
-        switch (event.which) {
-            case 32:
-                Sounds.switch.play();
-                gameArea.wands[0].reverse(); break;
-            case 70:
-                gameArea.wands[0].controls.swing = true; break;
-            case 68:
-                gameArea.wands[0].controls.latch = true; break;
-            case 83:
-                gameArea.wands[0].controls.bounce = true; break;
-            default:
-                break;
-        }
-    });
-    $('body').on("keyup", event => {
-        if (gameArea.wands < 1) return;
-        switch (event.which) {
-            case 70: // f
-                gameArea.wands[0].controls.swing = false;
-                break;
-            case 68: //d
-                gameArea.wands[0].controls.latch = false;
-                break;
-            case 83: // s
-                gameArea.wands[0].controls.bounce = false;
-                break;
-            default:
-                break;
-        }
-    })}
-);
-
-var gameArea = {
-    canvas: document.createElement("canvas"),
-    bgcanvas: document.createElement("canvas"),
-    start: function() {
-        this.canvas.width = SCALE * (MAX_WIDTH + 2);
-        this.canvas.height = SCALE * (MAX_HEIGHT + 2);
-        this.bgcanvas.width = SCALE * (MAX_WIDTH + 3);
-        this.bgcanvas.height = SCALE * (MAX_HEIGHT + 3);
-        this.xos = ~~(SCALE / 2);
-        this.yos = ~~(SCALE / 2);
-        this.ctx = this.canvas.getContext("2d");
-        this.bgctx = this.bgcanvas.getContext("2d");
-        this.canvas.id = "gameui";
-        this.bgcanvas.id = "bgui";
-        document.getElementById("stage").appendChild(this.canvas);
-        document.getElementById("stage").appendChild(this.bgcanvas);
-        this.interval = setInterval(updateGameArea, 25);
-
+class State {
+    constructor() {
         this.anchors = [];
         this.wands = [];
-        this.walls = [];
-        this.load(level);
-        this.drawbg();
-    },
-    load: function(l) {
-        // clear existing stacks
-        while (this.anchors.length > 0) { this.anchors.pop(); }
-        while (this.wands.length > 0) { this.wands.pop(); }
-        while (this.walls.length > 0) { this.walls.pop(); }
-
-        for (var y = 0; y < l.grid.length; y++) {
-            for (var x = 0; x < l.grid[0].length; x++) {
+        this.walls = [];   
+    }
+    load(l) {
+        this.reset();
+        for (let y = 0; y < l.grid.length; y++) {
+            for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
                     let anchor = new Anchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
                     let special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
@@ -283,6 +216,133 @@ var gameArea = {
             let w = l.walls[i];
             this.walls.push(new Wall(w.x1, w.y1, w.x2, w.y2));
         }
+    }
+    reset() { // clear existing stacks
+        while (this.anchors.length > 0) { this.anchors.pop(); }
+        while (this.wands.length > 0) { this.wands.pop(); }
+        while (this.walls.length > 0) { this.walls.pop(); }
+    }
+    tick() {
+        this.wands.map(w => w.stepAngle());
+        // other tick events here!
+    }
+    playerHitsBad() {
+        // enemy wands
+        for (let i = 1; i < this.wands.length; i++) {
+            if (intersect(this.wands[0], this.wands[0].dest(2), this.wands[i], this.wands[i].dest(2)))
+                return true;
+        }
+
+        // If on same anchor, mark as hitting enemy if within same 60 degree sector 
+        let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w == 0));
+        if (sharedAnchor > -1) {
+            let angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
+            // console.log(`Shared anchor angles: ${angles[0]} < ${angles[1]}`)
+            if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) {
+                // if (angles[1] - angles[0] < 40) {
+                //     console.log(`Bad because ${angles[1]} - ${angles[0]} < 30.`)
+                // }
+                // if (angles[1] - angles[0] > 320) {
+                //     console.log(`Bad because ${angles[1]} - ${angles[0]} > 330.`)
+                // }
+                
+                return true;
+            }
+        }
+
+        // other bad things?
+
+        return false;
+    }
+    playerHitsBounceable() {
+        // walls
+        for (let i = 0; i < this.walls.length; i++) {
+            if (intersect(this.wands[0], this.wands[0].dest(), this.walls[i], this.walls[i].dest())) {
+                // This call moves the wand back quickly to avoid clipping
+                this.wands[0].reverse(2);
+                return true;
+            }
+        }
+
+        // other bounceable things?
+        return false;
+    }
+    latchableAnchorIdFor(wandId) {
+        return this.anchors.findIndex(v => areClose(v, this.wands[wandId].dest()))
+    }
+    currentAnchorIdFor(wandId) {
+        return this.anchors.findIndex(a => a.wands.some(wid => wid == wandId));
+    }
+    moveWand(wid, oid, tid) {
+
+        /* FIXME change tid to teleport anchor ID if applicable
+         */
+
+        let fromEph = this.anchors.findIndex(v => v.ephlock);
+
+        this.anchors[oid].detachWand(wid);
+        this.wands[wid].setAnchor(this.anchors[tid].x, this.anchors[tid].y);
+        this.anchors[tid].attachWand(wid);
+
+        if (wid == 0 && fromEph > -1) {
+            this.anchors.splice(fromEph, 1);
+        }
+
+        this.wands[wid].latchAngle();
+        if (this.wands[wid].controls.swing) {
+            this.wands[wid].reverse();
+        }
+    }
+    processWands() {
+        for (let i = 1; i < this.wands.length; i++) {
+            if (this.wands[i].betweenRights()) continue;
+            let originId = this.currentAnchorIdFor(i);
+            let targetId = this.latchableAnchorIdFor(i);
+            if (targetId > -1) {
+                if (this.anchors[targetId].type == this.wands[i].type) {
+                    if (this.wands[i].controls.swing || this.wands[i].controls.latch) {
+                        this.moveWand(i, originId, targetId);
+                    } else if (this.wands[i].controls.bounce) {
+                        this.wands[i].reverse();
+                    }
+                }
+            }
+        }
+    }
+}
+
+const Sounds = {
+    bounce: new Audio('snd/bounce.ogg'),
+    latch: new Audio('snd/latch.ogg'),
+    pass: new Audio('snd/pass.ogg'),
+    switch: new Audio('snd/switch.ogg'),
+    win: new Audio('snd/win.ogg'),
+    lose: new Audio('snd/lose.ogg')
+}
+
+var game = {
+    canvas: document.createElement("canvas"),
+    bgcanvas: document.createElement("canvas"),
+    state: new State(),
+    start: function() {
+        this.canvas.width = SCALE * (MAX_WIDTH + 2);
+        this.canvas.height = SCALE * (MAX_HEIGHT + 2);
+        this.bgcanvas.width = SCALE * (MAX_WIDTH + 3);
+        this.bgcanvas.height = SCALE * (MAX_HEIGHT + 3);
+        this.xos = ~~(SCALE / 2);
+        this.yos = ~~(SCALE / 2);
+        this.ctx = this.canvas.getContext("2d");
+        this.bgctx = this.bgcanvas.getContext("2d");
+        this.canvas.id = "gameui";
+        this.bgcanvas.id = "bgui";
+        document.getElementById("stage").appendChild(this.canvas);
+        document.getElementById("stage").appendChild(this.bgcanvas);
+
+        this.state.load(testLevel);
+
+        this.interval = setInterval(updateGameArea, 25);
+        
+        this.drawbg();
     },
     offset: function(x, y) {
         return [x + SCALE + this.xos, y + SCALE + this.yos]
@@ -291,36 +351,35 @@ var gameArea = {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
-        for (let i = 0; i < this.walls.length; i++) {
-            this.ctx.strokeStyle = this.walls[i].color;
+        for (let i = 0; i < this.state.walls.length; i++) {
+            this.ctx.strokeStyle = this.state.walls[i].color;
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
-            this.ctx.moveTo(...this.offset(this.walls[i].x, this.walls[i].y));
-            this.ctx.lineTo(...this.offset(this.walls[i].x2, this.walls[i].y2));
+            this.ctx.moveTo(...this.offset(this.state.walls[i].x, this.state.walls[i].y));
+            this.ctx.lineTo(...this.offset(this.state.walls[i].x2, this.state.walls[i].y2));
             this.ctx.closePath();
             this.ctx.stroke();
-
         }
 
-        for (let i = 0; i < this.wands.length; i++) {
-            let dest = this.wands[i].getDest();
+        for (let i = 0; i < this.state.wands.length; i++) {
+            let dest = this.state.wands[i].dest();
             this.ctx.beginPath();
-            this.ctx.strokeStyle = this.wands[i].color;
-            this.ctx.lineWidth = this.wands[i].width;
-            this.ctx.moveTo(...this.offset(this.wands[i].x, this.wands[i].y));
+            this.ctx.strokeStyle = this.state.wands[i].color;
+            this.ctx.lineWidth = this.state.wands[i].width;
+            this.ctx.moveTo(...this.offset(this.state.wands[i].x, this.state.wands[i].y));
             this.ctx.lineTo(...this.offset(dest.x, dest.y));
             this.ctx.closePath();
             this.ctx.stroke();
         }
 
-        for (let i = 0; i < this.anchors.length; i++) {
-            this.ctx.fillStyle = this.anchors[i].fcolor;
+        for (let i = 0; i < this.state.anchors.length; i++) {
+            this.ctx.fillStyle = this.state.anchors[i].fcolor;
             this.ctx.beginPath();
-            this.ctx.arc(...this.offset(this.anchors[i].x, this.anchors[i].y), 4, 0, 2 * Math.PI);
+            this.ctx.arc(...this.offset(this.state.anchors[i].x, this.state.anchors[i].y), 4, 0, 2 * Math.PI);
             this.ctx.closePath();
             this.ctx.fill();
-            if (this.anchors[i].ephemeral == MASK.EPHEM) {
-                this.ctx.strokeStyle = this.anchors[i].scolor;
+            if (this.state.anchors[i].ephemeral == MASK.EPHEM) {
+                this.ctx.strokeStyle = this.state.anchors[i].scolor;
                 this.ctx.stroke();
             }
         } 
@@ -345,7 +404,7 @@ var gameArea = {
     },
     restart: function() {
         clearInterval(this.interval);
-        this.load(level);
+        this.state.load(testLevel);
         this.interval = setInterval(updateGameArea, 25);
     },
     gameOver: function () {
@@ -356,21 +415,21 @@ var gameArea = {
     }
 }
 
+function startGame() {
+    game.start();
+}
+
+/***
+ * Helper functions
+ */
 function destCoord(sx, sy, angle, length) {
     let dx = sx + Math.cos(Math.PI * angle / 180) * length;
     let dy = sy + Math.sin(Math.PI * angle / 180) * length; 
     return {x: dx, y: dy};
 }
-
-function startGame() {
-    gameArea.start();
-}
-
-// Are these two vertices close?
-function isClose(v1, v2) {
+function areClose(v1, v2) { // Are these two vertices close?
     return (Math.abs(v1.x - v2.x) < 1.3 && Math.abs(v1.y - v2.y) < 1.3)
 }
-
 function ccw(a, b, c) {
     return ((c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x))
 }
@@ -379,82 +438,74 @@ function intersect(s1, d1, s2, d2) {
 }
 
 function updateGameArea() {
-    gameArea.wands.map(w => w.stepAngle());
-    /*
-    for (let i = 0; i < gameArea.wands.length; i++) {
-        gameArea.wands[i].stepAngle();
-    }
-    */
-    for (let i = 1; i < gameArea.wands.length; i++) {
-        // These calls to getDest reduce the length of the wands to limit false hits
-        if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(2), gameArea.wands[i], gameArea.wands[i].getDest(2))) {
-            Sounds.lose.play();
-            gameArea.restart();
-            console.log("Intersected a wand!");
-        }
+    game.state.tick();
+
+    if (game.state.playerHitsBad()) {
+        Sounds.lose.play();
+        game.restart();
+        console.log("Intersected a bad!");
     }
 
-    for (let i = 0; i < gameArea.walls.length; i++) {
-        if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(), gameArea.walls[i], gameArea.walls[i].getDest())) {
-            Sounds.bounce.play();
-            // This call moves the wand back quickly to avoid clipping
-            gameArea.wands[0].reverse(2);
-            console.log("Wall bounce!");
-        }
+    if (game.state.playerHitsBounceable()) {
+        Sounds.bounce.play();
     }
-
     
-    let targetIndex = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[0].getDest()));
+    let targetIndex = game.state.latchableAnchorIdFor(0);
     if (targetIndex > -1) {
-        let originIndex = gameArea.anchors.findIndex(a => a.wands.some(wid => wid == 0));
-        let target = gameArea.anchors[targetIndex];
-        if (gameArea.wands[0].controls.swing || gameArea.wands[0].controls.latch) {
-            let fromEph = gameArea.anchors.findIndex(v => v.ephlock);
+        let originIndex = game.state.currentAnchorIdFor(0);
+        let target = game.state.anchors[targetIndex];
+        if (game.state.wands[0].controls.swing || game.state.wands[0].controls.latch) {
             if (target.type == 9) {
                 Sounds.win.play();
-                gameArea.gameOver();
+                game.gameOver();
             } else {
                 Sounds.latch.play();
-                gameArea.anchors[originIndex].detachWand(0);
-                gameArea.wands[0].setAnchor(target.x, target.y);
-                gameArea.anchors[targetIndex].attachWand(0);
-
-                if (fromEph > -1) {
-                    gameArea.anchors.splice(fromEph, 1);
-                }
-                gameArea.wands[0].latchAngle();
-                if (gameArea.wands[0].controls.swing) {
-                    gameArea.wands[0].reverse();
-                }
+                game.state.moveWand(0, originIndex, targetIndex);
             }
-        } else if (gameArea.wands[0].controls.bounce) {
+        } else if (game.state.wands[0].controls.bounce) {
             Sounds.bounce.play();
-            gameArea.wands[0].reverse();
+            game.state.wands[0].reverse();
         } else {
             Sounds.pass.play();
         }
     }
 
-    for (let i = 1; i < gameArea.wands.length; i++) {
-        if (gameArea.wands[i].betweenRights()) continue;
-        let originIndex = gameArea.anchors.findIndex(a => a.wands.some(wid => wid == i));
-        let targetIndex = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[i].getDest()));
-        if (targetIndex > -1) {
-            let target = gameArea.anchors[targetIndex];
-            if (target.type == gameArea.wands[i].type) {
-                if (gameArea.wands[i].controls.swing || gameArea.wands[i].controls.latch) {
-                    gameArea.anchors[originIndex].detachWand(i);
-                    gameArea.wands[i].setAnchor(target.x, target.y, i);
-                    gameArea.anchors[targetIndex].attachWand(i);
-                    gameArea.wands[i].latchAngle();
-                    if (gameArea.wands[i].controls.swing) {
-                        gameArea.wands[i].reverse();
-                    }
-                }
-            }
-        }
-    }
+    game.state.processWands();
 
-    gameArea.clear();
-    gameArea.draw();
+    game.clear();
+    game.draw();
 }
+
+$(document).ready(function() {
+    $('body').on("keydown", event => {
+        if (game.state.wands.length < 1) return;
+        switch (event.which) {
+            case 32:
+                Sounds.switch.play();
+                game.state.wands[0].reverse(); break;
+            case 70:
+                game.state.wands[0].controls.swing = true; break;
+            case 68:
+                game.state.wands[0].controls.latch = true; break;
+            case 83:
+                game.state.wands[0].controls.bounce = true; break;
+            default:
+                break;
+        }
+    });
+    $('body').on("keyup", event => {
+        if (game.state.wands.length < 1) return;
+        switch (event.which) {
+            case 70: // f
+                game.state.wands[0].controls.swing = false; break;
+            case 68: //d
+                game.state.wands[0].controls.latch = false;
+                break;
+            case 83: // s
+                game.state.wands[0].controls.bounce = false;
+                break;
+            default:
+                break;
+        }
+    })}
+);
