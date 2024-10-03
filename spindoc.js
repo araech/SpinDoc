@@ -2,7 +2,6 @@ const SCALE = 64;
 const MAX_HEIGHT = 7;
 const MAX_WIDTH  = 9;
 
-
 const MASK = {
     TYPE: 15,
     EPHEM: 16
@@ -10,35 +9,25 @@ const MASK = {
 
 const level = {
     grid: [
-        [1, 1, 1, 1, 1, 2, 1, 1, 0],
-        [1, 1, 1, 1, 1, 2, 1, 1, 1],
-        [1, 1, 1, 0, 1, 2, 1, 1, 1],
+        [1, 1,  1,  1,  1, 2, 1, 1, 0],
+        [1, 1,  1,  1,  1, 2, 1, 1, 5],
+        [1, 1,  1,  0,  1, 2, 1, 1, 1],
         [1, 1, 17, 17, 17, 2, 1, 1, 1],
-        [3, 3, 3, 3, 1, 2, 1, 1, 1],
-        [1, 1, 1, 3, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 0, 1, 1, 9]
+        [3, 3,  3,  3,  1, 2, 1, 1, 1],
+        [1, 1,  1,  3,  1, 1, 1, 1, 1],
+        [5, 1,  1,  1,  1, 0, 1, 1, 9]
+    ],
+    anchors: [
+        { x: 1, y: 8, teleid: 1 },
+        { x: 0, y: 6, teleid: 1 },
+        { x: 3, y: 0, points: 1000 },
+        { x: 2, y: 6, points: 2000 }
     ],
     wands: [
-        {
-            x: 0,
-            y: 0,
-            type: 1
-        },
-        {
-            x: 5,
-            y: 1,
-            type: 2
-        },
-        {
-            x: 5,
-            y: 3,
-            type: 2
-        },
-        {
-            x: 1,
-            y: 4,
-            type: 3
-        }
+        { x: 0, y: 0, type: 1 },
+        { x: 5,  y: 1, type: 2 },
+        { x: 5, y: 3, type: 2 },
+        { x: 1, y: 4, type: 3 }
     ],
     walls: [
         { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 },
@@ -53,41 +42,65 @@ const Color = {
     AnchorWhite: "200,200,200",
     AnchorRed: "220,160,160",
     AnchorBlue: "160,160,220",
+    AnchorPurple: "220,160,220",
     Wall: "100,100,100",
     Exit: "240,240,160"
 }
 
 class Anchor {
-    constructor(x, y, type, ephemeral) {
+    constructor(x, y, type, ephemeral, teleId = 0) {
         this.x = SCALE * x;
         this.y = SCALE * y;
         this.type = type;
         this.ephemeral = ephemeral;
         this.ephlock = false;
-        this.fcolor = this.getfColor();
-        this.scolor = this.getsColor();
-
+        this.fcolor = this.#getfColor();
+        this.scolor = this.#getsColor();
+        this.wands = [];
+        this.teleId = teleId; 
     }
-    getColor() {
+    #getColor() {
         if (this.type == 2) {
             return Color.AnchorRed;
         } else if (this.type == 3) {
             return Color.AnchorBlue;
+        } else if (this.type == 5) {
+            return Color.AnchorPurple;
         } else if (this.type == 9) {
             return Color.Exit;
         } else {
             return Color.AnchorWhite;
         }
     }
+    attachWand(wi) {
+        this.wands.push(wi);
+        if (this.ephemeral > 0 && this.ephlock == false) {
+            this.toggleEph();
+        }
+        //console.log(`Attached ${wi} to ${this.x},${this.y}.`)
+        // fixme logic for POINT BONUS status if wi == 0
+    }
+    detachWand(wi) {
+        let i = this.wands.findIndex(i => wi == i);
+        if (i >= 0) {
+            // console.log(`Removed ${wi} from ${this.x},${this.y}.`)
+            this.wands.splice(i, 1)
+        } else {
+            // console.log(`ERR: Tried to remove wand ${wi} from [${this.x},${this.y}] but it is not attached.`);
+        }
+    }
+    hasWand(wi) {
+        return (this.wands.some(w => w == wi))
+    }
     toggleEph() {
         this.ephlock = true;
         this.fcolor = `rgb(${Color.Wall})`
     }
-    getfColor() {
-        return this.ephemeral == MASK.EPHEM ? `rgba(${this.getColor()},0)` : `rgb(${this.getColor()})`;
+    #getfColor() {
+        return this.ephemeral == MASK.EPHEM ? `rgba(${this.#getColor()},0)` : `rgb(${this.#getColor()})`;
     }
-    getsColor() {
-        return `rgb(${this.getColor()})`
+    #getsColor() {
+        return `rgb(${this.#getColor()})`
     }
 }
 
@@ -97,14 +110,14 @@ class Wand {
         this.x = SCALE * x;
         this.y = SCALE * y;
         this.type = type;
-        this.color = `rgb(${this.getColor()})`;
-        this.width = this.getWidth();
+        this.color = `rgb(${this.#getColor()})`;
+        this.width = this.#getWidth();
         this.angle = angle;
         this.speed = speed;
         this.length = SCALE;
-        this.controls = this.getControl();
+        this.controls = this.#getControl();
     }
-    getControl() {
+    #getControl() {
         if (this.type == 2) {
             return { swing: true, latch: false, bounce: false };
         } else if (this.type == 3) {
@@ -113,7 +126,7 @@ class Wand {
             return { swing: false, latch: false, bounce: false };
         }
     }
-    getColor() {
+    #getColor() {
         if (this.type == 1) {
             return Color.WandWhite;
         } else if (this.type == 2) {
@@ -124,7 +137,7 @@ class Wand {
             return "0 255 0"; // error
         }
     }
-    getWidth() {
+    #getWidth() {
         if (this.type == 1) {
             return 4;
         } else if (this.type == 2 || this.type == 3) {
@@ -135,6 +148,9 @@ class Wand {
     }
     getDest(short = 0) {
         return destCoord(this.x, this.y, this.angle, this.length - short);
+    }
+    betweenRights() {
+        return (~~this.angle % 90 < 85) && (~~this.angle % 90 > 5);
     }
     setAnchor(x, y) {
         this.x = x;
@@ -158,9 +174,9 @@ class Wall {
         this.y = ~~(SCALE * sy);
         this.x2 = ~~(SCALE * dx);
         this.y2 = ~~(SCALE * dy);
-        this.color = this.getColor();
+        this.color = this.#getColor();
     }
-    getColor() {
+    #getColor() {
         return `rgb(${Color.Wall})`;
     }
     getDest() {
@@ -245,13 +261,23 @@ var gameArea = {
         for (var y = 0; y < l.grid.length; y++) {
             for (var x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    this.anchors.push(new Anchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM));
+                    let anchor = new Anchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
+                    let special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
+                    if (special) {
+                        anchor.teleId = special.teleId;
+                    }
+                    this.anchors.push(anchor);
                 }
             }
         }
         for (let i = 0; i < l.wands.length; i++) {
             let w = l.wands[i];
             this.wands.push(new Wand(w.x, w.y, w.type));
+        }
+        for (let i = 0; i < l.wands.length; i++) { // attach wands to initial anchors
+            let w = this.wands[i];
+            let aid = this.anchors.findIndex(a => a.x == w.x && a.y == w.y);
+            this.anchors[aid].attachWand(i);
         }
         for (let i = 0; i < l.walls.length; i++) {
             let w = l.walls[i];
@@ -301,7 +327,7 @@ var gameArea = {
     },
     drawbg: function() {
         this.bgctx.clearRect(0, 0, this.bgcanvas.width, this.bgcanvas.height);
-        
+    
         this.bgctx.fillStyle = "#eee";
         this.bgctx.font = "20px sans-serif";
         this.bgctx.fontVariantCaps = "small-caps";
@@ -324,7 +350,9 @@ var gameArea = {
     },
     gameOver: function () {
         clearInterval(this.interval);
-        // draw GAME OVER on this.bgctx
+        this.bgctx.textBaseline = "bottom";
+        this.bgctx.textAlign = "center";
+        this.bgctx.fillText("Game Over", ~~(this.bgcanvas.width / 2), this.bgcanvas.height - 7);
     }
 }
 
@@ -351,10 +379,12 @@ function intersect(s1, d1, s2, d2) {
 }
 
 function updateGameArea() {
+    gameArea.wands.map(w => w.stepAngle());
+    /*
     for (let i = 0; i < gameArea.wands.length; i++) {
         gameArea.wands[i].stepAngle();
     }
-
+    */
     for (let i = 1; i < gameArea.wands.length; i++) {
         // These calls to getDest reduce the length of the wands to limit false hits
         if (intersect(gameArea.wands[0], gameArea.wands[0].getDest(2), gameArea.wands[i], gameArea.wands[i].getDest(2))) {
@@ -373,24 +403,25 @@ function updateGameArea() {
         }
     }
 
-
-    let hasTarget = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[0].getDest()));
-    if (hasTarget > -1) {
-        let target = gameArea.anchors[hasTarget];
+    
+    let targetIndex = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[0].getDest()));
+    if (targetIndex > -1) {
+        let originIndex = gameArea.anchors.findIndex(a => a.wands.some(wid => wid == 0));
+        let target = gameArea.anchors[targetIndex];
         if (gameArea.wands[0].controls.swing || gameArea.wands[0].controls.latch) {
             let fromEph = gameArea.anchors.findIndex(v => v.ephlock);
             if (target.type == 9) {
                 Sounds.win.play();
                 gameArea.gameOver();
             } else {
+                Sounds.latch.play();
+                gameArea.anchors[originIndex].detachWand(0);
+                gameArea.wands[0].setAnchor(target.x, target.y);
+                gameArea.anchors[targetIndex].attachWand(0);
+
                 if (fromEph > -1) {
                     gameArea.anchors.splice(fromEph, 1);
                 }
-                if (target.ephemeral == MASK.EPHEM && target.ephlock == false) {
-                    target.toggleEph();
-                }
-                Sounds.latch.play();
-                gameArea.wands[0].setAnchor(target.x, target.y);
                 gameArea.wands[0].latchAngle();
                 if (gameArea.wands[0].controls.swing) {
                     gameArea.wands[0].reverse();
@@ -405,12 +436,16 @@ function updateGameArea() {
     }
 
     for (let i = 1; i < gameArea.wands.length; i++) {
-        let hasTarget = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[i].getDest()));
-        if (hasTarget > -1) {
-            let target = gameArea.anchors[hasTarget];
+        if (gameArea.wands[i].betweenRights()) continue;
+        let originIndex = gameArea.anchors.findIndex(a => a.wands.some(wid => wid == i));
+        let targetIndex = gameArea.anchors.findIndex(v => isClose(v, gameArea.wands[i].getDest()));
+        if (targetIndex > -1) {
+            let target = gameArea.anchors[targetIndex];
             if (target.type == gameArea.wands[i].type) {
                 if (gameArea.wands[i].controls.swing || gameArea.wands[i].controls.latch) {
-                    gameArea.wands[i].setAnchor(target.x, target.y);
+                    gameArea.anchors[originIndex].detachWand(i);
+                    gameArea.wands[i].setAnchor(target.x, target.y, i);
+                    gameArea.anchors[targetIndex].attachWand(i);
                     gameArea.wands[i].latchAngle();
                     if (gameArea.wands[i].controls.swing) {
                         gameArea.wands[i].reverse();
