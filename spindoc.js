@@ -18,8 +18,8 @@ const testLevel = {
         [5, 1,  1,  1,  1, 0, 1, 1, 9]
     ],
     anchors: [
-        { x: 1, y: 8, teleid: 1 },
-        { x: 0, y: 6, teleid: 1 },
+        { x: 8, y: 1, teleId: 1 },
+        { x: 0, y: 6, teleId: 11 },
         { x: 3, y: 0, points: 1000 },
         { x: 2, y: 6, points: 2000 }
     ],
@@ -47,7 +47,7 @@ const Color = {
     Exit: "240,240,160"
 }
 
-class Anchor {
+class SpinAnchor {
     constructor(x, y, type, ephemeral, teleId = 0) {
         this.x = SCALE * x;
         this.y = SCALE * y;
@@ -104,7 +104,7 @@ class Anchor {
     }
 }
 
-class Wand {
+class SpinWand {
     constructor (x, y, type, angle = 0, speed = 1.5) {
         this.x = SCALE * x;
         this.y = SCALE * y;
@@ -167,7 +167,7 @@ class Wand {
     }
 }
 
-class Wall {
+class SpinWall {
     constructor(sx, sy, dx, dy) {
         this.x = ~~(SCALE * sx);
         this.y = ~~(SCALE * sy);
@@ -183,6 +183,18 @@ class Wall {
     }
 }
 
+class SpinField {
+    constructor() {
+        
+    }
+}
+
+class SpinAnim {
+    constructor() {
+
+    }
+}
+
 class State {
     constructor() {
         this.anchors = [];
@@ -194,7 +206,7 @@ class State {
         for (let y = 0; y < l.grid.length; y++) {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    let anchor = new Anchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
+                    let anchor = new SpinAnchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
                     let special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
                     if (special) {
                         anchor.teleId = special.teleId;
@@ -205,7 +217,7 @@ class State {
         }
         for (let i = 0; i < l.wands.length; i++) {
             let w = l.wands[i];
-            this.wands.push(new Wand(w.x, w.y, w.type));
+            this.wands.push(new SpinWand(w.x, w.y, w.type));
         }
         for (let i = 0; i < l.wands.length; i++) { // attach wands to initial anchors
             let w = this.wands[i];
@@ -214,7 +226,7 @@ class State {
         }
         for (let i = 0; i < l.walls.length; i++) {
             let w = l.walls[i];
-            this.walls.push(new Wall(w.x1, w.y1, w.x2, w.y2));
+            this.walls.push(new SpinWall(w.x1, w.y1, w.x2, w.y2));
         }
     }
     reset() { // clear existing stacks
@@ -233,19 +245,11 @@ class State {
                 return true;
         }
 
-        // If on same anchor, mark as hitting enemy if within same 60 degree sector 
+        // If on same anchor, mark as hitting enemy if within same 80 degree sector 
         let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w == 0));
         if (sharedAnchor > -1) {
             let angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
-            // console.log(`Shared anchor angles: ${angles[0]} < ${angles[1]}`)
             if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) {
-                // if (angles[1] - angles[0] < 40) {
-                //     console.log(`Bad because ${angles[1]} - ${angles[0]} < 30.`)
-                // }
-                // if (angles[1] - angles[0] > 320) {
-                //     console.log(`Bad because ${angles[1]} - ${angles[0]} > 330.`)
-                // }
-                
                 return true;
             }
         }
@@ -275,8 +279,10 @@ class State {
     }
     moveWand(wid, oid, tid) {
 
-        /* FIXME change tid to teleport anchor ID if applicable
-         */
+        if (this.anchors[tid].type == 5) {
+            let telMatch = this.anchors[tid].teleId % 10;
+            tid = this.anchors.findIndex(a => a.teleId % 10 == telMatch && a.teleId != this.anchors[tid].teleId);
+        }
 
         let fromEph = this.anchors.findIndex(v => v.ephlock);
 
@@ -289,6 +295,7 @@ class State {
         }
 
         this.wands[wid].latchAngle();
+        
         if (this.wands[wid].controls.swing) {
             this.wands[wid].reverse();
         }
@@ -311,13 +318,14 @@ class State {
     }
 }
 
-const Sounds = {
+const SpinSound = {
     bounce: new Audio('snd/bounce.ogg'),
     latch: new Audio('snd/latch.ogg'),
     pass: new Audio('snd/pass.ogg'),
     switch: new Audio('snd/switch.ogg'),
     win: new Audio('snd/win.ogg'),
-    lose: new Audio('snd/lose.ogg')
+    lose: new Audio('snd/lose.ogg'),
+    teleport: new Audio('snd/teleport.ogg')
 }
 
 var game = {
@@ -338,6 +346,12 @@ var game = {
         document.getElementById("stage").appendChild(this.canvas);
         document.getElementById("stage").appendChild(this.bgcanvas);
 
+        this.aniData = { // should be args?
+            current: 0,
+            step: 0,
+            max: 0
+        };
+
         this.state.load(testLevel);
 
         this.interval = setInterval(updateGameArea, 25);
@@ -351,6 +365,9 @@ var game = {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
+        // FIXME draw Animation frames
+        // FIXME draw Field objects
+
         for (let i = 0; i < this.state.walls.length; i++) {
             this.ctx.strokeStyle = this.state.walls[i].color;
             this.ctx.lineWidth = 3;
@@ -402,6 +419,28 @@ var game = {
         this.bgctx.textAlign = "right";
         this.bgctx.fillText("Score: 1000", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
+    drawDeathFrame: function() {
+        let dest = this.state.wands[0].dest();
+        let [cur, max] = [this.aniData.current, this.aniData.max];
+        let width = ~~((this.state.wands[0].width + 2) * ((max - cur) / max));
+        let [r, g, b] = [((max - cur) / max) > 0.5 ? 255 : 255 - ~~(cur / 2), 255 - cur, 255 - cur];
+        this.ctx.beginPath();  
+        this.ctx.strokeStyle = `rgba(${r},${g},${b},${(max - cur) / max})`;
+        this.ctx.lineWidth = width;
+        this.ctx.moveTo(...this.offset(this.state.wands[0].x, this.state.wands[0].y));
+        this.ctx.lineTo(...this.offset(dest.x, dest.y));
+        this.ctx.closePath();
+        this.ctx.stroke();
+    },
+    animate: function(kind) {
+        if (kind == "death") {
+            clearInterval(this.interval);
+            this.aniData.current = 0;
+            this.aniData.step = 3;
+            this.aniData.max = 200;
+            this.interval = setInterval(animateDeath, 25);
+        }
+    },
     restart: function() {
         clearInterval(this.interval);
         this.state.load(testLevel);
@@ -441,13 +480,13 @@ function updateGameArea() {
     game.state.tick();
 
     if (game.state.playerHitsBad()) {
-        Sounds.lose.play();
-        game.restart();
+        SpinSound.lose.play();
+        game.animate("death");
         console.log("Intersected a bad!");
     }
 
     if (game.state.playerHitsBounceable()) {
-        Sounds.bounce.play();
+        SpinSound.bounce.play();
     }
     
     let targetIndex = game.state.latchableAnchorIdFor(0);
@@ -456,17 +495,22 @@ function updateGameArea() {
         let target = game.state.anchors[targetIndex];
         if (game.state.wands[0].controls.swing || game.state.wands[0].controls.latch) {
             if (target.type == 9) {
-                Sounds.win.play();
+                SpinSound.win.play();
                 game.gameOver();
             } else {
-                Sounds.latch.play();
+                if (target.type != 5) {
+                    SpinSound.latch.play();
+                } else {
+                    SpinSound.teleport.play();
+                }
+                
                 game.state.moveWand(0, originIndex, targetIndex);
             }
         } else if (game.state.wands[0].controls.bounce) {
-            Sounds.bounce.play();
+            SpinSound.bounce.play();
             game.state.wands[0].reverse();
         } else {
-            Sounds.pass.play();
+            SpinSound.pass.play();
         }
     }
 
@@ -476,12 +520,21 @@ function updateGameArea() {
     game.draw();
 }
 
+function animateDeath() {
+    if (game.aniData.current >= game.aniData.max) {
+        game.restart();
+    } else {
+        game.drawDeathFrame();
+        game.aniData.current += game.aniData.step;
+    }
+}
+
 $(document).ready(function() {
     $('body').on("keydown", event => {
         if (game.state.wands.length < 1) return;
         switch (event.which) {
             case 32:
-                Sounds.switch.play();
+                SpinSound.switch.play();
                 game.state.wands[0].reverse(); break;
             case 70:
                 game.state.wands[0].controls.swing = true; break;
@@ -499,11 +552,9 @@ $(document).ready(function() {
             case 70: // f
                 game.state.wands[0].controls.swing = false; break;
             case 68: //d
-                game.state.wands[0].controls.latch = false;
-                break;
+                game.state.wands[0].controls.latch = false; break;
             case 83: // s
-                game.state.wands[0].controls.bounce = false;
-                break;
+                game.state.wands[0].controls.bounce = false; break;
             default:
                 break;
         }
