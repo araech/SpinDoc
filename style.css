@@ -31,3 +31,7 @@ canvas {
     background-color: #111;
     outline: 4px solid #333;
 }
+
+img {
+    display: none;
+}

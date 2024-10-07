@@ -1,3 +1,13 @@
+/***
+ * Spin Doctor - an HTML5 Canvas game
+ * (c) 2024 by Aubrey Raech
+ * Licensed under the AGPLv3+
+ */
+
+/***
+ * General data and constants
+ */
+
 const SCALE = 64;
 const MAX_HEIGHT = 7;
 const MAX_WIDTH  = 9;
@@ -32,7 +42,20 @@ const testLevel = {
     walls: [
         { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 },
         { x1: 6.5, y1: 1.2, x2: 6.5, y2: 3.8 }
-    ]
+    ],
+    conduit: { // items that talk to each other
+
+    }
+}
+
+const SpinSound = {
+    bounce: new Audio('snd/bounce.ogg'),
+    latch: new Audio('snd/latch.ogg'),
+    pass: new Audio('snd/pass.ogg'),
+    switch: new Audio('snd/switch.ogg'),
+    win: new Audio('snd/win.ogg'),
+    lose: new Audio('snd/lose.ogg'),
+    teleport: new Audio('snd/teleport.ogg')
 }
 
 const Color = {
@@ -43,9 +66,76 @@ const Color = {
     AnchorRed: "220,160,160",
     AnchorBlue: "160,160,220",
     AnchorPurple: "220,160,220",
+    GateRed: "210,80,80",
+    GateBlue: "80,80,210",
     Wall: "100,100,100",
-    Exit: "240,240,160"
+    Exit: "240,240,160",
+    ERROR: "0,0,255"
 }
+
+/***
+ * Utility functions
+ */
+
+function destCoord(sx, sy, angle, length) {
+    let dx = sx + Math.cos(Math.PI * angle / 180) * length;
+    let dy = sy + Math.sin(Math.PI * angle / 180) * length; 
+    return {x: dx, y: dy};
+}
+function areClose(v1, v2) { // Are these two vertices close?
+    return (Math.abs(v1.x - v2.x) < 1.3 && Math.abs(v1.y - v2.y) < 1.3)
+}
+function ccw(a, b, c) {
+    return ((c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x))
+}
+function lineIntersect(as, ae, bs, be) {
+    // does line segment as,ad intersect line segment bs,bd?
+    return (ccw(as, bs, be) != ccw(ae, bs, be) && ccw(as, ae, bs) != ccw(as, ae, be));
+}
+
+function pointsFar(v1, v2) {
+    // are two vertices too far to warrant further calculation?
+    return Math.sqrt(((v1.x - v2.x) ** 2) + ((v1.y - v2.y) ** 2)) > SCALE * 2;
+}
+
+function lineRectIntersect(as, ae, rv1, rv2) {
+    // return early if more than SCALE from every vertex.
+    let rvs = {
+        a: {x: rv1.x, y: rv1.y},
+        b: {x: rv2.x, y: rv1.y},
+        c: {x: rv2.x, y: rv2.y},
+        d: {x: rv1.x, y: rv2.y}
+    };
+
+    if (pointsFar(as, rvs.a)
+        && pointsFar(as, rvs.b)
+        && pointsFar(as, rvs.c)
+        && pointsFar(as, rvs.d)) {
+        return false;
+    }
+
+    let rect = {
+        ab: { vs: rvs.a, ve: rvs.b },
+        bc: { vs: rvs.b, ve: rvs.c },
+        cd: { vs: rvs.c, ve: rvs.d },
+        da: { vs: rvs.d, ve: rvs.a }
+    };
+    for (const ls in rect) {
+        if (lineIntersect(as, ae, rect[ls].vs, rect[ls].ve))
+            return true;
+    }
+    return false;
+}
+
+// Rather than check for circle intersection, pass the
+// bounding box around the circle to rect intersection check.
+function lineCircleIntersect(as, ae, orig, rad) {
+    return lineRectIntersect(as, ae, {x: orig.x - rad, y: orig.y - rad}, {x: orig.x + rad, y: orig.y + rad});
+}
+
+/*** 
+ * Classes
+ */
 
 class SpinAnchor {
     constructor(x, y, type, ephemeral, teleId = 0) {
@@ -77,7 +167,6 @@ class SpinAnchor {
         if (this.ephemeral > 0 && this.ephlock == false) {
             this.toggleEph();
         }
-        //console.log(`Attached ${wi} to ${this.x},${this.y}.`)
         // fixme logic for POINT BONUS status if wi == 0
     }
     detachWand(wi) {
@@ -102,12 +191,25 @@ class SpinAnchor {
     #getsColor() {
         return `rgb(${this.#getColor()})`
     }
+    draw() {
+        game.ctx.fillStyle = this.fcolor;
+        game.ctx.beginPath();
+        game.ctx.arc(...game.offset(this.x, this.y), 4, 0, 2 * Math.PI);
+        game.ctx.closePath();
+        game.ctx.fill();
+        if (this.ephemeral == MASK.EPHEM) {
+            game.ctx.strokeStyle = this.scolor;
+            game.ctx.stroke();
+        }
+    }
 }
 
 class SpinWand {
     constructor (x, y, type, angle = 0, speed = 1.5) {
         this.x = SCALE * x;
         this.y = SCALE * y;
+        this.destx = 0;
+        this.desty = 0;
         this.type = type;
         this.color = `rgb(${this.#getColor()})`;
         this.width = this.#getWidth();
@@ -133,7 +235,7 @@ class SpinWand {
         } else if (this.type == 3) {
             return Color.WandBlue;
         } else {
-            return "0 255 0"; // error
+            return Color.ERROR;
         }
     }
     #getWidth() {
@@ -146,7 +248,10 @@ class SpinWand {
         }
     }
     dest(short = 0) {
-        return destCoord(this.x, this.y, this.angle, this.length - short);
+        return destCoord(
+            (short == 0) ? ~~(this.x) : this.x,
+            (short == 0) ? ~~(this.y) : this.y,
+            this.angle, this.length - short);
     }
     betweenRights() {
         return (~~this.angle % 90 < 85) && (~~this.angle % 90 > 5);
@@ -155,8 +260,11 @@ class SpinWand {
         this.x = x;
         this.y = y;
     }
-    stepAngle(n = 1) { // FIXME way to accomplish this with fewer calculations?
+    stepAngle(n = 1) { 
         this.angle = (this.angle + (this.speed * n) + 360) % 360;
+        let tmp = this.dest(); // FIXME
+        this.destx = tmp.x;
+        this.desty = tmp.y;
     }
     latchAngle() {
         this.angle += (this.angle <= 180) ? 180 : -180;
@@ -164,6 +272,15 @@ class SpinWand {
     reverse(n = 1) {
         this.speed *= -1;
         this.stepAngle(n)
+    }
+    draw() {
+        game.ctx.beginPath();
+        game.ctx.strokeStyle = this.color;
+        game.ctx.lineWidth = this.width;
+        game.ctx.moveTo(...game.offset(this.x, this.y));
+        game.ctx.lineTo(...game.offset(~~(this.destx), ~~(this.desty)));
+        game.ctx.closePath();
+        game.ctx.stroke();
     }
 }
 
@@ -173,27 +290,107 @@ class SpinWall {
         this.y = ~~(SCALE * sy);
         this.x2 = ~~(SCALE * dx);
         this.y2 = ~~(SCALE * dy);
-        this.color = this.#getColor();
+        this.color = `rgb(${this.#getColor()})`;
     }
     #getColor() {
-        return `rgb(${Color.Wall})`;
+        return Color.Wall;
     }
     dest() {
         return { x: this.x2, y: this.y2 };
     }
+    draw() {
+        game.ctx.strokeStyle = this.color;
+        game.ctx.lineWidth = 3;
+        game.ctx.beginPath();
+        game.ctx.moveTo(...game.offset(this.x, this.y));
+        game.ctx.lineTo(...game.offset(this.x2, this.y2));
+        game.ctx.closePath();
+        game.ctx.stroke();
+    }
 }
 
-class SpinField {
-    constructor() {
+class SpinGate extends EventTarget {
+    constructor(type, sx, sy, ex, ey) {
+        this.type = type;
+        this.color = this.#getColor();
+        this.endA = {x: sx, y: sy};
+        this.endB = {x: ex, y: ey};
+        this.innerA = this.initInner();
+        this.innerB = this.initInner();
+        this.closed = true;
+        this.opening = false;
+        this.closing = false;
+    }
+    #getColor() {
+        if (this.type == 1) {
+            return Color.GateRed;
+        } else if (this.type == 2) {
+            return Color.GateBlue;
+        }
+        return Color.ERROR;
+    }
+    tick() {
+        if (!(this.opening && this.closing)) return;
+        // adjust endA and endB one step UNTIL opened/closed,
+        //   then set opening/closing to false.
         
     }
-}
-
-class SpinAnim {
-    constructor() {
-
+    initInner() {
+        if (this.endA.x == this.endB.x) {
+            return { x: this.endAx, y: ((this.endA.y + this.endB.y) >> 1) };
+        } else if (this.endA.y == this.endB.y) {
+            return { x: ((this.endA.x + this.endB.x) >> 1), y: this.endA.y }
+        }
+    }
+    getDrawCoords() {
+        return [this.endA, this.innerA, this.endB, this.innerB];
+    }
+    trigger() {
+        if (this.opening || this.closing) return;
+        if (this.closed) {
+            this.opening = true;
+        } else {
+            this.closing = true;
+        }
     }
 }
+
+// class SpinTask {
+//     /***
+//      * Task to be called either just before or just after the game.draw() phase.
+//      * Optionally, 
+//      */
+//     constructor(tickFn) {
+//         this.tickFn = (done, postDraw, stepData, behavior) => {
+//             let done = done;
+//             const tick = tickFn;
+
+//         }
+//     }
+// }
+
+// class SpinField {
+//     /***
+//      * Rectangle area, whose entering and exiting by the player
+//      * triggers a specified behavior. 
+//      */
+//     constructor(type, x, y, locked, alertCallback) {
+        
+//     }
+// }
+
+// class SpinAnim {
+//     /***
+//      * Generalized animation construct, containing
+//      *  - Coordinates
+//      *  - Drawing instructions
+//      *  - Animation duration and step procedure
+//      *  - Conditions for termination
+//      */
+//     constructor() {
+
+//     }
+// }
 
 class State {
     constructor() {
@@ -235,13 +432,13 @@ class State {
         while (this.walls.length > 0) { this.walls.pop(); }
     }
     tick() {
-        this.wands.map(w => w.stepAngle());
+        this.wands.forEach(w => w.stepAngle());
         // other tick events here!
     }
     playerHitsBad() {
         // enemy wands
         for (let i = 1; i < this.wands.length; i++) {
-            if (intersect(this.wands[0], this.wands[0].dest(2), this.wands[i], this.wands[i].dest(2)))
+            if (lineIntersect(this.wands[0], this.wands[0].dest(2), this.wands[i], this.wands[i].dest(2)))
                 return true;
         }
 
@@ -261,7 +458,7 @@ class State {
     playerHitsBounceable() {
         // walls
         for (let i = 0; i < this.walls.length; i++) {
-            if (intersect(this.wands[0], this.wands[0].dest(), this.walls[i], this.walls[i].dest())) {
+            if (lineIntersect(this.wands[0], this.wands[0].dest(), this.walls[i], this.walls[i].dest())) {
                 // This call moves the wand back quickly to avoid clipping
                 this.wands[0].reverse(2);
                 return true;
@@ -318,19 +515,14 @@ class State {
     }
 }
 
-const SpinSound = {
-    bounce: new Audio('snd/bounce.ogg'),
-    latch: new Audio('snd/latch.ogg'),
-    pass: new Audio('snd/pass.ogg'),
-    switch: new Audio('snd/switch.ogg'),
-    win: new Audio('snd/win.ogg'),
-    lose: new Audio('snd/lose.ogg'),
-    teleport: new Audio('snd/teleport.ogg')
-}
+/***
+ * Game object
+ */
 
 var game = {
     canvas: document.createElement("canvas"),
     bgcanvas: document.createElement("canvas"),
+    offscreen: new OffscreenCanvas(SCALE * (MAX_WIDTH + 2), SCALE * (MAX_HEIGHT + 2)),
     state: new State(),
     start: function() {
         this.canvas.width = SCALE * (MAX_WIDTH + 2);
@@ -339,7 +531,8 @@ var game = {
         this.bgcanvas.height = SCALE * (MAX_HEIGHT + 3);
         this.xos = ~~(SCALE / 2);
         this.yos = ~~(SCALE / 2);
-        this.ctx = this.canvas.getContext("2d");
+        this.fgctx = this.canvas.getContext("2d");
+        this.ctx = this.offscreen.getContext("2d");
         this.bgctx = this.bgcanvas.getContext("2d");
         this.canvas.id = "gameui";
         this.bgcanvas.id = "bgui";
@@ -354,7 +547,7 @@ var game = {
 
         this.state.load(testLevel);
 
-        this.interval = setInterval(updateGameArea, 25);
+        this.interval = setInterval(updateGameArea, 30);
         
         this.drawbg();
     },
@@ -362,7 +555,8 @@ var game = {
         return [x + SCALE + this.xos, y + SCALE + this.yos]
     },
     clear: function() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.offscreen.width, this.offscreen.height);
+        this.fgctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
         // FIXME draw Animation frames
@@ -378,6 +572,10 @@ var game = {
             this.ctx.stroke();
         }
 
+        /* for (let i = 0; i < this.state.walls.length; i++) {
+            this.state.walls[i].draw();
+        } */
+
         for (let i = 0; i < this.state.wands.length; i++) {
             let dest = this.state.wands[i].dest();
             this.ctx.beginPath();
@@ -388,6 +586,10 @@ var game = {
             this.ctx.closePath();
             this.ctx.stroke();
         }
+
+        /* for (let i = 0; i < this.state.wands.length; i++) {
+            this.state.wands[i].draw();
+        } */
 
         for (let i = 0; i < this.state.anchors.length; i++) {
             this.ctx.fillStyle = this.state.anchors[i].fcolor;
@@ -400,6 +602,12 @@ var game = {
                 this.ctx.stroke();
             }
         } 
+
+            /* for (let i = 0; i < this.state.anchors.length; i++) {
+                this.state.anchors[i].draw();
+            } */
+
+        this.fgctx.drawImage(this.offscreen, 0, 0);
     },
     drawbg: function() {
         this.bgctx.clearRect(0, 0, this.bgcanvas.width, this.bgcanvas.height);
@@ -438,13 +646,13 @@ var game = {
             this.aniData.current = 0;
             this.aniData.step = 3;
             this.aniData.max = 200;
-            this.interval = setInterval(animateDeath, 25);
+            this.interval = setInterval(animateDeath, 30);
         }
     },
     restart: function() {
         clearInterval(this.interval);
         this.state.load(testLevel);
-        this.interval = setInterval(updateGameArea, 25);
+        this.interval = setInterval(updateGameArea, 30);
     },
     gameOver: function () {
         clearInterval(this.interval);
@@ -458,23 +666,9 @@ function startGame() {
     game.start();
 }
 
-/***
- * Helper functions
+/**
+ * Game Loop
  */
-function destCoord(sx, sy, angle, length) {
-    let dx = sx + Math.cos(Math.PI * angle / 180) * length;
-    let dy = sy + Math.sin(Math.PI * angle / 180) * length; 
-    return {x: dx, y: dy};
-}
-function areClose(v1, v2) { // Are these two vertices close?
-    return (Math.abs(v1.x - v2.x) < 1.3 && Math.abs(v1.y - v2.y) < 1.3)
-}
-function ccw(a, b, c) {
-    return ((c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x))
-}
-function intersect(s1, d1, s2, d2) {
-    return (ccw(s1, s2, d2) != ccw(d1, s2, d2) && ccw(s1, d1, s2) != ccw(s1, d1, d2));
-}
 
 function updateGameArea() {
     game.state.tick();
@@ -514,6 +708,7 @@ function updateGameArea() {
         }
     }
 
+    // non-player wands
     game.state.processWands();
 
     game.clear();
