@@ -78,9 +78,10 @@ const Color = {
  */
 
 function destCoord(sx, sy, angle, length) {
-    let dx = sx + Math.cos(Math.PI * angle / 180) * length;
-    let dy = sy + Math.sin(Math.PI * angle / 180) * length; 
-    return {x: dx, y: dy};
+    return {
+        x: sx + Math.cos(Math.PI * angle / 180) * length,
+        y: sy + Math.sin(Math.PI * angle / 180) * length
+    };
 }
 function areClose(v1, v2) { // Are these two vertices close?
     return (Math.abs(v1.x - v2.x) < 1.3 && Math.abs(v1.y - v2.y) < 1.3)
@@ -90,6 +91,7 @@ function ccw(a, b, c) {
 }
 function lineIntersect(as, ae, bs, be) {
     // does line segment as,ad intersect line segment bs,bd?
+    // TODO -- early return for distant objects?
     return (ccw(as, bs, be) != ccw(ae, bs, be) && ccw(as, ae, bs) != ccw(as, ae, be));
 }
 
@@ -100,7 +102,7 @@ function pointsFar(v1, v2) {
 
 function lineRectIntersect(as, ae, rv1, rv2) {
     // return early if more than SCALE from every vertex.
-    let rvs = {
+    const rvs = {
         a: {x: rv1.x, y: rv1.y},
         b: {x: rv2.x, y: rv1.y},
         c: {x: rv2.x, y: rv2.y},
@@ -114,7 +116,7 @@ function lineRectIntersect(as, ae, rv1, rv2) {
         return false;
     }
 
-    let rect = {
+    const rect = {
         ab: { vs: rvs.a, ve: rvs.b },
         bc: { vs: rvs.b, ve: rvs.c },
         cd: { vs: rvs.c, ve: rvs.d },
@@ -162,15 +164,18 @@ class SpinAnchor {
             return Color.AnchorWhite;
         }
     }
+    location() {
+        return { x: this.x, y: this.y };
+    }
     attachWand(wi) {
         this.wands.push(wi);
         if (this.ephemeral > 0 && this.ephlock == false) {
             this.toggleEph();
         }
-        // fixme logic for POINT BONUS status if wi == 0
+        // TODO logic for POINT BONUS status if wi == 0
     }
     detachWand(wi) {
-        let i = this.wands.findIndex(i => wi == i);
+        const i = this.wands.findIndex(i => wi == i);
         if (i >= 0) {
             // console.log(`Removed ${wi} from ${this.x},${this.y}.`)
             this.wands.splice(i, 1)
@@ -247,6 +252,9 @@ class SpinWand {
             return 8; // error
         }
     }
+    location() {
+        return { x: this.x, y: this.y };
+    }
     dest(short = 0) {
         return destCoord(
             (short == 0) ? ~~(this.x) : this.x,
@@ -262,7 +270,7 @@ class SpinWand {
     }
     stepAngle(n = 1) { 
         this.angle = (this.angle + (this.speed * n) + 360) % 360;
-        let tmp = this.dest(); // FIXME
+        const tmp = this.dest(); // update dest variables to new angle
         this.destx = tmp.x;
         this.desty = tmp.y;
     }
@@ -277,8 +285,8 @@ class SpinWand {
         game.ctx.beginPath();
         game.ctx.strokeStyle = this.color;
         game.ctx.lineWidth = this.width;
-        game.ctx.moveTo(...game.offset(this.x, this.y));
-        game.ctx.lineTo(...game.offset(~~(this.destx), ~~(this.desty)));
+        game.ctx.moveTo(...game.offset(this.location()));
+        game.ctx.lineTo(...game.offset({x: ~~(this.destx), y: ~~(this.desty) }));
         game.ctx.closePath();
         game.ctx.stroke();
     }
@@ -295,15 +303,18 @@ class SpinWall {
     #getColor() {
         return Color.Wall;
     }
-    dest() {
+    startxy() {
+        return { x: this.x, y: this.y };
+    }
+    endxy() {
         return { x: this.x2, y: this.y2 };
     }
     draw() {
         game.ctx.strokeStyle = this.color;
         game.ctx.lineWidth = 3;
         game.ctx.beginPath();
-        game.ctx.moveTo(...game.offset(this.x, this.y));
-        game.ctx.lineTo(...game.offset(this.x2, this.y2));
+        game.ctx.moveTo(...game.offset(this.startxy()));
+        game.ctx.lineTo(...game.offset(this.endxy()));
         game.ctx.closePath();
         game.ctx.stroke();
     }
@@ -403,8 +414,8 @@ class State {
         for (let y = 0; y < l.grid.length; y++) {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    let anchor = new SpinAnchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
-                    let special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
+                    const anchor = new SpinAnchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
+                    const special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
                     if (special) {
                         anchor.teleId = special.teleId;
                     }
@@ -413,16 +424,16 @@ class State {
             }
         }
         for (let i = 0; i < l.wands.length; i++) {
-            let w = l.wands[i];
+            const w = l.wands[i];
             this.wands.push(new SpinWand(w.x, w.y, w.type));
         }
         for (let i = 0; i < l.wands.length; i++) { // attach wands to initial anchors
-            let w = this.wands[i];
-            let aid = this.anchors.findIndex(a => a.x == w.x && a.y == w.y);
+            const w = this.wands[i];
+            const aid = this.anchors.findIndex(a => a.x == w.x && a.y == w.y);
             this.anchors[aid].attachWand(i);
         }
         for (let i = 0; i < l.walls.length; i++) {
-            let w = l.walls[i];
+            const w = l.walls[i];
             this.walls.push(new SpinWall(w.x1, w.y1, w.x2, w.y2));
         }
     }
@@ -436,16 +447,18 @@ class State {
         // other tick events here!
     }
     playerHitsBad() {
-        // enemy wands
+        // enemy wands -- (2) argument shortens the length to avoid unintentional hits.
         for (let i = 1; i < this.wands.length; i++) {
-            if (lineIntersect(this.wands[0], this.wands[0].dest(2), this.wands[i], this.wands[i].dest(2)))
+            if (lineIntersect(this.wands[0].location(), this.wands[0].dest(2),
+                                this.wands[i].location(), this.wands[i].dest(2))) {
                 return true;
+            }
         }
 
         // If on same anchor, mark as hitting enemy if within same 80 degree sector 
         let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w == 0));
         if (sharedAnchor > -1) {
-            let angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
+            const angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
             if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) {
                 return true;
             }
@@ -458,7 +471,7 @@ class State {
     playerHitsBounceable() {
         // walls
         for (let i = 0; i < this.walls.length; i++) {
-            if (lineIntersect(this.wands[0], this.wands[0].dest(), this.walls[i], this.walls[i].dest())) {
+            if (lineIntersect(this.wands[0], this.wands[0].dest(), this.walls[i].startxy(), this.walls[i].endxy())) {
                 // This call moves the wand back quickly to avoid clipping
                 this.wands[0].reverse(2);
                 return true;
@@ -477,11 +490,11 @@ class State {
     moveWand(wid, oid, tid) {
 
         if (this.anchors[tid].type == 5) {
-            let telMatch = this.anchors[tid].teleId % 10;
+            const telMatch = this.anchors[tid].teleId % 10;
             tid = this.anchors.findIndex(a => a.teleId % 10 == telMatch && a.teleId != this.anchors[tid].teleId);
         }
 
-        let fromEph = this.anchors.findIndex(v => v.ephlock);
+        const fromEph = this.anchors.findIndex(v => v.ephlock);
 
         this.anchors[oid].detachWand(wid);
         this.wands[wid].setAnchor(this.anchors[tid].x, this.anchors[tid].y);
@@ -500,8 +513,8 @@ class State {
     processWands() {
         for (let i = 1; i < this.wands.length; i++) {
             if (this.wands[i].betweenRights()) continue;
-            let originId = this.currentAnchorIdFor(i);
-            let targetId = this.latchableAnchorIdFor(i);
+            const originId = this.currentAnchorIdFor(i);
+            const targetId = this.latchableAnchorIdFor(i);
             if (targetId > -1) {
                 if (this.anchors[targetId].type == this.wands[i].type) {
                     if (this.wands[i].controls.swing || this.wands[i].controls.latch) {
@@ -551,23 +564,23 @@ var game = {
         
         this.drawbg();
     },
-    offset: function(x, y) {
-        return [x + SCALE + this.xos, y + SCALE + this.yos]
+    offset: function(xy) {
+        return [xy.x + SCALE + this.xos, xy.y + SCALE + this.yos]
     },
     clear: function() {
         this.ctx.clearRect(0, 0, this.offscreen.width, this.offscreen.height);
         this.fgctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     },
     draw: function() {
-        // FIXME draw Animation frames
-        // FIXME draw Field objects
+        // TODO draw Animation frames
+        // TODO draw Field objects
 
         for (let i = 0; i < this.state.walls.length; i++) {
             this.ctx.strokeStyle = this.state.walls[i].color;
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
-            this.ctx.moveTo(...this.offset(this.state.walls[i].x, this.state.walls[i].y));
-            this.ctx.lineTo(...this.offset(this.state.walls[i].x2, this.state.walls[i].y2));
+            this.ctx.moveTo(...this.offset(this.state.walls[i].startxy()));
+            this.ctx.lineTo(...this.offset(this.state.walls[i].endxy()));
             this.ctx.closePath();
             this.ctx.stroke();
         }
@@ -577,12 +590,11 @@ var game = {
         } */
 
         for (let i = 0; i < this.state.wands.length; i++) {
-            let dest = this.state.wands[i].dest();
             this.ctx.beginPath();
             this.ctx.strokeStyle = this.state.wands[i].color;
             this.ctx.lineWidth = this.state.wands[i].width;
-            this.ctx.moveTo(...this.offset(this.state.wands[i].x, this.state.wands[i].y));
-            this.ctx.lineTo(...this.offset(dest.x, dest.y));
+            this.ctx.moveTo(...this.offset(this.state.wands[i].location()));
+            this.ctx.lineTo(...this.offset(this.state.wands[i].dest()));
             this.ctx.closePath();
             this.ctx.stroke();
         }
@@ -594,7 +606,7 @@ var game = {
         for (let i = 0; i < this.state.anchors.length; i++) {
             this.ctx.fillStyle = this.state.anchors[i].fcolor;
             this.ctx.beginPath();
-            this.ctx.arc(...this.offset(this.state.anchors[i].x, this.state.anchors[i].y), 4, 0, 2 * Math.PI);
+            this.ctx.arc(...this.offset(this.state.anchors[i].location()), 4, 0, 2 * Math.PI);
             this.ctx.closePath();
             this.ctx.fill();
             if (this.state.anchors[i].ephemeral == MASK.EPHEM) {
@@ -628,17 +640,17 @@ var game = {
         this.bgctx.fillText("Score: 1000", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
     drawDeathFrame: function() {
-        let dest = this.state.wands[0].dest();
-        let [cur, max] = [this.aniData.current, this.aniData.max];
-        let width = ~~((this.state.wands[0].width + 2) * ((max - cur) / max));
-        let [r, g, b] = [((max - cur) / max) > 0.5 ? 255 : 255 - ~~(cur / 2), 255 - cur, 255 - cur];
-        this.ctx.beginPath();  
-        this.ctx.strokeStyle = `rgba(${r},${g},${b},${(max - cur) / max})`;
-        this.ctx.lineWidth = width;
-        this.ctx.moveTo(...this.offset(this.state.wands[0].x, this.state.wands[0].y));
-        this.ctx.lineTo(...this.offset(dest.x, dest.y));
-        this.ctx.closePath();
-        this.ctx.stroke();
+        const dest = this.state.wands[0].dest();
+        const [cur, max] = [this.aniData.current, this.aniData.max];
+        const width = ~~((this.state.wands[0].width + 2) * ((max - cur) / max));
+        const [r, g, b] = [((max - cur) / max) > 0.5 ? 255 : 255 - ~~(cur / 2), 255 - cur, 255 - cur];
+        this.fgctx.beginPath();  
+        this.fgctx.strokeStyle = `rgba(${r},${g},${b},${(max - cur) / max})`;
+        this.fgctx.lineWidth = width;
+        this.fgctx.moveTo(...this.offset(this.state.wands[0].location()));
+        this.fgctx.lineTo(...this.offset({x: dest.x, y: dest.y }));
+        this.fgctx.closePath();
+        this.fgctx.stroke();
     },
     animate: function(kind) {
         if (kind == "death") {
@@ -683,10 +695,10 @@ function updateGameArea() {
         SpinSound.bounce.play();
     }
     
-    let targetIndex = game.state.latchableAnchorIdFor(0);
+    const targetIndex = game.state.latchableAnchorIdFor(0);
     if (targetIndex > -1) {
-        let originIndex = game.state.currentAnchorIdFor(0);
-        let target = game.state.anchors[targetIndex];
+        const originIndex = game.state.currentAnchorIdFor(0);
+        const target = game.state.anchors[targetIndex];
         if (game.state.wands[0].controls.swing || game.state.wands[0].controls.latch) {
             if (target.type == 9) {
                 SpinSound.win.play();
