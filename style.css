@@ -35,3 +35,83 @@ canvas {
 img {
     display: none;
 }
+
+#selector {
+    font-family: sans-serif;
+    font-variant: small-caps;
+    letter-spacing: 2px;
+    z-index: 3;
+    margin: 80px auto 0;
+    width: 480px;
+    height: 340px;
+    position: relative;
+    z-index: 3;
+    top: 64px;
+    border: 3px solid #222;
+    background-color: #444;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    border-radius: 1rem;
+    transition: margin 1s ease-out;
+}
+
+#selector h2 {
+    color: #ddd;
+    text-align: center;
+    padding: 0.8rem;
+    font-size: 2rem;
+    
+}
+
+#selector span {
+    color: #ddd;
+    display: block;
+    padding: 0.5rem 1rem;
+    width: 90%;
+    font-size: 1.5rem;
+}
+
+#selector span:hover {
+    cursor: default;
+    color: #aaa;
+}
+
+#selector.hideme {
+    margin: -600px auto 0; 
+}
+
+#infobox {
+    width: 600px;
+    padding: 1rem 1.5rem;
+    margin: 0 auto;
+    background-color: #444;
+    border-left: 2px solid #333;
+    border-bottom: 2px solid #333;
+    border-right: 2px solid #333;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+    color: #eee;
+}
+
+#infobox h3 {
+    font-variant: small-caps;
+    text-align: center;
+    font-size: 1.4rem;
+    padding-bottom: 0.5rem;
+}
+#infobox p {
+    font-size: 1.1rem;
+    padding: 0 0 2px;
+    display: inline-block;
+    padding-right: 2rem;
+}
+
+.keybox {
+    font-size: 1rem;
+    display: inline-block;
+    background-color: #ddd;
+    font-family: monospace;
+    color: #336;
+    border: 1px solid #aad;
+    padding: 1px 3px;
+}

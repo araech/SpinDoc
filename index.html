@@ -9,11 +9,21 @@
 			  src="jquery-3.7.1.min.js"></script>
         <script src="spindoc.js"></script>
         <script>
-
+            
         </script>
     </head>
     <body>
         <div id="stage"></div>
+
+        <div id="infobox">
+            <h3>Controls</h3>
+            <p><span class="keybox">f</span> Swing</p>
+            <p><span class="keybox">d</span> Latch</p>
+            <p><span class="keybox">s</span> Bounce</p>
+            <p><span class="keybox">Space</span> Reverse</p>
+            <p><span class="keybox">Esc</span> Menu</p>
+        </div>
+
         <img src="sprites/gates.png" id="gateSprite" />
         <script>
             window.addEventListener("load", startGame);

@@ -17,7 +17,7 @@ const MASK = {
     EPHEM: 16
 }
 
-const testLevel = {
+const asdfasdfasdfasdf = {
     grid: [
         [1, 1,  1,  1,  1, 2, 1, 1, 0],
         [1, 1,  1,  1,  1, 2, 1, 1, 5],
@@ -29,24 +29,43 @@ const testLevel = {
     ],
     anchors: [
         { x: 8, y: 1, teleId: 1 },
-        { x: 0, y: 6, teleId: 11 },
-        { x: 3, y: 0, points: 1000 },
-        { x: 2, y: 6, points: 2000 }
+        { x: 0, y: 6, teleId: 11 }
     ],
     wands: [
         { x: 0, y: 0, type: 1 },
-        { x: 5,  y: 1, type: 2 },
+        { x: 5, y: 1, type: 2 },
         { x: 5, y: 3, type: 2 },
         { x: 1, y: 4, type: 3 }
     ],
     walls: [
         { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 },
         { x1: 6.5, y1: 1.2, x2: 6.5, y2: 3.8 }
-    ],
-    conduit: { // items that talk to each other
-
-    }
+    ]
 }
+
+const testLevel = {
+    num: 5,
+    title: "Teleportation",
+    grid: [
+        [0, 0, 1, 1, 1, 1, 1, 1, 1],
+        [0, 1, 1, 1, 1, 1, 1, 1, 9],
+        [0, 5, 1, 1, 3, 3, 1, 1, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 2, 2, 1, 1, 5, 0],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [1, 1, 1, 1, 1, 1, 1, 0, 0]
+    ],
+    anchors: [
+        {x: 1, y: 2, teleId:  1},
+        {x: 7, y: 4, teleId: 11}
+    ],
+    wands: [
+        {x: 0, y: 5, type: 1},
+        {x: 3, y: 4, type: 2},
+        {x: 5, y: 2, type: 3}
+    ],
+    walls: []
+};
 
 const SpinSound = {
     bounce: new Audio('snd/bounce.ogg'),
@@ -62,20 +81,149 @@ const Color = {
     WandWhite: "255,255,255",
     WandRed: "240,180,180",
     WandBlue: "180,180,240",
+    WandGreen: "180,240,180",
     AnchorWhite: "200,200,200",
-    AnchorRed: "220,160,160",
-    AnchorBlue: "160,160,220",
-    AnchorPurple: "220,160,220",
+    AnchorRed: "210,150,150",
+    AnchorBlue: "150,150,210",
+    AnchorGreen: "150,210,150",
+    AnchorPurple: "210,150,210",
     GateRed: "210,80,80",
     GateBlue: "80,80,210",
     Wall: "100,100,100",
     Exit: "240,240,160",
+    ExitBorder: "240,180,120",
     ERROR: "0,0,255"
 }
+
+const SpinLevels = [
+    {
+        num: 0,
+        title: "Empty template",
+        grid: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        anchors: [],
+        wands: [],
+        walls: []
+    },
+    {
+        num: 1,
+        title: "The Grid",
+        grid: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 1, 1, 0, 0, 0],
+            [0, 0, 1, 1, 1, 1, 1, 0, 0],
+            [0, 0, 1, 1, 1, 1, 1, 0, 0],
+            [0, 0, 1, 1, 1, 1, 9, 0, 0],
+            [0, 0, 0, 1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        wands: [
+            {x: 2, y: 2, type: 1}
+        ],
+        anchors: [],
+        walls: []
+    },
+    {
+        num: 2,
+        title: "Walls",
+        grid: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 1, 1, 1, 9, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        anchors: [],
+        wands: [
+            {x: 1, y: 5, type: 1}
+        ],
+        walls: [
+            {x1: 2.5, y1: 2.2, x2: 2.5, y2: 5.2},
+            {x1: 5.5, y1: 0.8, x2: 5.5, y2: 3.8}
+        ]
+    },
+    {
+        num: 3,
+        title: "Ephemera",
+        grid: [
+            [0,  0,  0, 0,  0, 0,  0, 0, 0],
+            [0,  0,  1, 1,  1, 0,  1, 1, 0],
+            [0,  1,  1, 1, 17, 0,  1, 1, 0],
+            [0,  1, 17, 1, 17, 1, 17, 1, 0],
+            [0,  1,  1, 0, 17, 1,  1, 1, 0],
+            [0,  9,  1, 0,  1, 1,  1, 0, 0],
+            [0,  0,  0, 0,  0, 0,  0, 0, 0]
+        ],
+        anchors: [],
+        wands: [
+            {x: 7, y: 1, type: 1}
+        ],
+        walls: []
+    },
+    {
+        num: 4,
+        title: "Wands",
+        grid: [
+            [0, 1, 1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 1, 1, 1, 1, 2, 0],
+            [0, 1, 1, 1, 1, 1, 1, 2, 0],
+            [0, 1, 1, 1, 4, 1, 1, 1, 0],
+            [0, 3, 1, 1, 1, 1, 1, 1, 0],
+            [0, 3, 1, 1, 1, 1, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 1, 9, 0]
+        ],
+        anchors: [],
+        wands: [
+            {x: 1, y: 0, type: 1},
+            {x: 4, y: 3, type: 4},
+            {x: 1, y: 4, type: 3},
+            {x: 7, y: 2, type: 2}
+        ],
+        walls: []
+    },
+    {
+        num: 5,
+        title: "Teleportation",
+        grid: [
+            [0, 0, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 1, 1, 1, 9],
+            [0, 5, 1, 1, 3, 3, 1, 1, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 1, 1, 2, 2, 1, 1, 5, 0],
+            [1, 1, 1, 1, 1, 1, 1, 1, 0],
+            [1, 1, 1, 1, 1, 1, 1, 0, 0]
+        ],
+        anchors: [
+            {x: 1, y: 2, teleId:  1},
+            {x: 7, y: 4, teleId: 11}
+        ],
+        wands: [
+            {x: 0, y: 5, type: 1},
+            {x: 3, y: 4, type: 2},
+            {x: 5, y: 2, type: 3}
+        ],
+        walls: []
+    },
+];
 
 /***
  * Utility functions
  */
+
+function clickLevel(num) {
+    game.selectLevel(num);
+    const menu = document.getElementById("selector");
+    menu.className = menu.className === "hideme" ? "" : "hideme";
+}
 
 function destCoord(sx, sy, angle, length) {
     return {
@@ -91,7 +239,6 @@ function ccw(a, b, c) {
 }
 function lineIntersect(as, ae, bs, be) {
     // does line segment as,ad intersect line segment bs,bd?
-    // TODO -- early return for distant objects?
     return (ccw(as, bs, be) != ccw(ae, bs, be) && ccw(as, ae, bs) != ccw(as, ae, be));
 }
 
@@ -156,6 +303,8 @@ class SpinAnchor {
             return Color.AnchorRed;
         } else if (this.type == 3) {
             return Color.AnchorBlue;
+        } else if (this.type == 4) {
+            return Color.AnchorGreen;
         } else if (this.type == 5) {
             return Color.AnchorPurple;
         } else if (this.type == 9) {
@@ -194,7 +343,11 @@ class SpinAnchor {
         return this.ephemeral == MASK.EPHEM ? `rgba(${this.#getColor()},0)` : `rgb(${this.#getColor()})`;
     }
     #getsColor() {
-        return `rgb(${this.#getColor()})`
+        if (this.type == 9) {
+            return `rgb(${Color.ExitBorder})`;
+        } else {
+            return `rgb(${this.#getColor()})`
+        }
     }
     draw() {
         game.ctx.fillStyle = this.fcolor;
@@ -239,6 +392,8 @@ class SpinWand {
             return Color.WandRed;
         } else if (this.type == 3) {
             return Color.WandBlue;
+        } else if (this.type == 4) {
+            return Color.WandGreen;
         } else {
             return Color.ERROR;
         }
@@ -246,7 +401,7 @@ class SpinWand {
     #getWidth() {
         if (this.type == 1) {
             return 4;
-        } else if (this.type == 2 || this.type == 3) {
+        } else if (this.type == 2 || this.type == 3 || this.type == 4) {
             return 2;
         } else {
             return 8; // error
@@ -405,12 +560,18 @@ class SpinGate extends EventTarget {
 
 class State {
     constructor() {
+        this.levmeta = {
+            num: 0,
+            title: ""
+        }
         this.anchors = [];
         this.wands = [];
         this.walls = [];   
     }
     load(l) {
         this.reset();
+        this.levmeta.num = l.num;
+        this.levmeta.title = l.title;
         for (let y = 0; y < l.grid.length; y++) {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
@@ -423,17 +584,14 @@ class State {
                 }
             }
         }
-        for (let i = 0; i < l.wands.length; i++) {
-            const w = l.wands[i];
+        for (const w of l.wands) {
             this.wands.push(new SpinWand(w.x, w.y, w.type));
         }
-        for (let i = 0; i < l.wands.length; i++) { // attach wands to initial anchors
-            const w = this.wands[i];
-            const aid = this.anchors.findIndex(a => a.x == w.x && a.y == w.y);
+        for (let i = 0; i < this.wands.length; i++) {
+            const aid = this.anchors.findIndex(a => a.x == this.wands[i].x && a.y == this.wands[i].y);
             this.anchors[aid].attachWand(i);
         }
-        for (let i = 0; i < l.walls.length; i++) {
-            const w = l.walls[i];
+        for (const w of l.walls) {
             this.walls.push(new SpinWall(w.x1, w.y1, w.x2, w.y2));
         }
     }
@@ -447,19 +605,19 @@ class State {
         // other tick events here!
     }
     playerHitsBad() {
-        // enemy wands -- (2) argument shortens the length to avoid unintentional hits.
-        for (let i = 1; i < this.wands.length; i++) {
-            if (lineIntersect(this.wands[0].location(), this.wands[0].dest(2),
-                                this.wands[i].location(), this.wands[i].dest(2))) {
-                return true;
-            }
-        }
-
         // If on same anchor, mark as hitting enemy if within same 80 degree sector 
         let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w == 0));
         if (sharedAnchor > -1) {
             const angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
-            if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) {
+            if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) return true;
+        }
+
+        for (let i = 1; i < this.wands.length; i++) {
+            // skip distant wands to avoid unncessary calculation
+            if (pointsFar(this.wands[0].location(), this.wands[i].location())) continue;
+            // enemy wands -- (2) argument shortens the length to avoid unintentional hits.
+            if (lineIntersect(this.wands[0].location(), this.wands[0].dest(2),
+                                this.wands[i].location(), this.wands[i].dest(2))) {
                 return true;
             }
         }
@@ -512,6 +670,7 @@ class State {
     }
     processWands() {
         for (let i = 1; i < this.wands.length; i++) {
+
             if (this.wands[i].betweenRights()) continue;
             const originId = this.currentAnchorIdFor(i);
             const targetId = this.latchableAnchorIdFor(i);
@@ -551,18 +710,22 @@ var game = {
         this.bgcanvas.id = "bgui";
         document.getElementById("stage").appendChild(this.canvas);
         document.getElementById("stage").appendChild(this.bgcanvas);
+        this.createMenuEntries();
+        this.interval = 0;
 
         this.aniData = { // should be args?
             current: 0,
             step: 0,
             max: 0
         };
-
-        this.state.load(testLevel);
-
-        this.interval = setInterval(updateGameArea, 30);
         
         this.drawbg();
+    },
+    selectLevel: function(levelid) {
+        this.state.load(SpinLevels[levelid]);
+        this.canvas.focus();
+        this.drawbg();
+        this.startGameLoop();
     },
     offset: function(xy) {
         return [xy.x + SCALE + this.xos, xy.y + SCALE + this.yos]
@@ -609,7 +772,8 @@ var game = {
             this.ctx.arc(...this.offset(this.state.anchors[i].location()), 4, 0, 2 * Math.PI);
             this.ctx.closePath();
             this.ctx.fill();
-            if (this.state.anchors[i].ephemeral == MASK.EPHEM) {
+            if (this.state.anchors[i].ephemeral == MASK.EPHEM || this.state.anchors[i].type == 9) {
+                this.ctx.lineWidth = 1;
                 this.ctx.strokeStyle = this.state.anchors[i].scolor;
                 this.ctx.stroke();
             }
@@ -631,13 +795,16 @@ var game = {
         this.bgctx.textAlign = "left";
         this.bgctx.textBaseline = "top";
         this.bgctx.fillText("Spin Doctor", 7, 7);
-        this.bgctx.textAlign = "right";
-        this.bgctx.fillText("Level 1", this.bgcanvas.width - 7, 7)
+        if (this.state.levmeta.num > 0) {
+            this.bgctx.textAlign = "right";
+            const levstring = `Level ${this.state.levmeta.num}: ${this.state.levmeta.title}`;
+            this.bgctx.fillText(levstring, this.bgcanvas.width - 7, 7)
+        }
         this.bgctx.textBaseline = "bottom";
         this.bgctx.textAlign = "left";
-        this.bgctx.fillText("Wands: 3", 7, this.bgcanvas.height - 7);
+        this.bgctx.fillText("Wands: ∞", 7, this.bgcanvas.height - 7);
         this.bgctx.textAlign = "right";
-        this.bgctx.fillText("Score: 1000", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
+        this.bgctx.fillText("Score: 0", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
     drawDeathFrame: function() {
         const dest = this.state.wands[0].dest();
@@ -671,6 +838,30 @@ var game = {
         this.bgctx.textBaseline = "bottom";
         this.bgctx.textAlign = "center";
         this.bgctx.fillText("Game Over", ~~(this.bgcanvas.width / 2), this.bgcanvas.height - 7);
+        this.openMenu();
+    },
+    createMenuEntries: function() {
+        const seldiv = document.createElement("div");
+        const h2 = document.createElement("h2");
+        h2.innerText = "Select Level";
+        seldiv.appendChild(h2);
+        seldiv.id = "selector";
+        for (let lvi = 1; lvi < SpinLevels.length; lvi++) {
+            const span = document.createElement("span");
+            span.innerText = `Level ${SpinLevels[lvi].num}: ${SpinLevels[lvi].title}`;
+            span.setAttribute("onclick", `clickLevel(${lvi})`);
+            seldiv.appendChild(span);
+        }
+        document.getElementById("stage").appendChild(seldiv);
+    },
+    startGameLoop: function() {
+        this.canvas.focus();
+        this.interval = setInterval(updateGameArea, 30);
+    },
+    openMenu: function() {
+        clearInterval(this.interval);
+        const menu = document.getElementById("selector");
+        menu.classList.remove("hideme");
     }
 }
 
@@ -740,6 +931,8 @@ $(document).ready(function() {
     $('body').on("keydown", event => {
         if (game.state.wands.length < 1) return;
         switch (event.which) {
+            case 27:
+                game.openMenu(); break;
             case 32:
                 SpinSound.switch.play();
                 game.state.wands[0].reverse(); break;
