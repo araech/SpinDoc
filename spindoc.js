@@ -19,32 +19,6 @@ const MASK = {
     EPHEM: 16
 }
 
-const asdfasdfasdfasdf = {
-    grid: [
-        [1, 1,  1,  1,  1, 2, 1, 1, 0],
-        [1, 1,  1,  1,  1, 2, 1, 1, 5],
-        [1, 1,  1,  0,  1, 2, 1, 1, 1],
-        [1, 1, 17, 17, 17, 2, 1, 1, 1],
-        [3, 3,  3,  3,  1, 2, 1, 1, 1],
-        [1, 1,  1,  3,  1, 1, 1, 1, 1],
-        [5, 1,  1,  1,  1, 0, 1, 1, 9]
-    ],
-    anchors: [
-        { x: 8, y: 1, teleId: 1 },
-        { x: 0, y: 6, teleId: 11 }
-    ],
-    wands: [
-        { x: 0, y: 0, type: 1 },
-        { x: 5, y: 1, type: 2 },
-        { x: 5, y: 3, type: 2 },
-        { x: 1, y: 4, type: 3 }
-    ],
-    walls: [
-        { x1: 1.2, y1: 0.5, x2: 3.8, y2: 0.5 },
-        { x1: 6.5, y1: 1.2, x2: 6.5, y2: 3.8 }
-    ]
-}
-
 const SpinSound = {
     bounce: new Audio('snd/bounce.ogg'),
     latch: new Audio('snd/latch.ogg'),
@@ -56,20 +30,27 @@ const SpinSound = {
 }
 
 const Color = {
-    WandWhite: "255,255,255",
-    WandRed: "240,180,180",
-    WandBlue: "180,180,240",
-    WandGreen: "180,240,180",
-    AnchorWhite: "200,200,200",
-    AnchorRed: "210,150,150",
-    AnchorBlue: "150,150,210",
-    AnchorGreen: "150,210,150",
-    AnchorPurple: "210,150,210",
-    GateRed: "210,80,80",
-    GateBlue: "80,80,210",
+    Wand: {
+        White:  "255,255,255",
+        Red: "240,180,180",
+        Blue: "180,180,240",
+        Green: "180,240,180",
+    },
+    Anchor: {
+        White: "210,210,210",
+        Red: "210,150,150",
+        Blue: "150,150,210",
+        Green: "150,210,150",
+        Purple: "210,150,210",
+        Exit: "240,240,160",
+        ExitBorder: "240,180,120",
+    },
+    Gate: {
+        Red: "210,80,80",
+        Blue: "80,210,80",
+        Green: "80,80,210",
+    },
     Wall: "100,100,100",
-    Exit: "240,240,160",
-    ExitBorder: "240,180,120",
     ERROR: "0,0,255"
 }
 
@@ -88,7 +69,9 @@ const SpinLevels = [
         ],
         anchors: [],
         wands: [],
-        walls: []
+        walls: [],
+        fields: [],
+        gates: []
     },
     {
         num: 1,
@@ -106,7 +89,9 @@ const SpinLevels = [
             {x: 2, y: 2, type: 1}
         ],
         anchors: [],
-        walls: []
+        walls: [],
+        fields: [],
+        gates: []
     },
     {
         num: 2,
@@ -127,7 +112,9 @@ const SpinLevels = [
         walls: [
             {x1: 2.5, y1: 2.2, x2: 2.5, y2: 5.2},
             {x1: 5.5, y1: 0.8, x2: 5.5, y2: 3.8}
-        ]
+        ],
+        fields: [],
+        gates: []
     },
     {
         num: 3,
@@ -145,7 +132,9 @@ const SpinLevels = [
         wands: [
             {x: 7, y: 1, type: 1}
         ],
-        walls: []
+        walls: [],
+        fields: [],
+        gates: []
     },
     {
         num: 4,
@@ -166,7 +155,9 @@ const SpinLevels = [
             {x: 1, y: 4, type: 3},
             {x: 7, y: 2, type: 2}
         ],
-        walls: []
+        walls: [],
+        fields: [],
+        gates: []
     },
     {
         num: 5,
@@ -189,7 +180,27 @@ const SpinLevels = [
             {x: 3, y: 4, type: 2},
             {x: 5, y: 2, type: 3}
         ],
-        walls: []
+        walls: [],
+        fields: [],
+        gates: []
+    },
+    {
+        num: 6,
+        title: "Gates",
+        grid: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        anchors: [],
+        wands: [],
+        walls: [],
+        fields: [],
+        gates: []
     },
 ];
 
@@ -203,10 +214,10 @@ function clickLevel(num) {
     menu.className = menu.className === "hideme" ? "" : "hideme";
 }
 
-function destCoord(sx, sy, angle, length) {
+function destCoord(originx, originy, angle, length) {
     return {
-        x: sx + Math.cos(Math.PI * angle / 180) * length,
-        y: sy + Math.sin(Math.PI * angle / 180) * length
+        x: originx + Math.cos(Math.PI * angle / 180) * length,
+        y: originy + Math.sin(Math.PI * angle / 180) * length
     };
 }
 function areClose(v1, v2) { // Are these two vertices close?
@@ -226,7 +237,7 @@ function pointsFar(v1, v2) {
 }
 
 function lineRectIntersect(as, ae, rv1, rv2) {
-    // return early if more than SCALE from every vertex.
+    // return early if more than SCALE from every rect vertex.
     const rvs = {
         a: {x: rv1.x, y: rv1.y},
         b: {x: rv2.x, y: rv1.y},
@@ -277,18 +288,13 @@ class SpinAnchor {
         this.teleId = teleId; 
     }
     #getColor() {
-        if (this.type == 2) {
-            return Color.AnchorRed;
-        } else if (this.type == 3) {
-            return Color.AnchorBlue;
-        } else if (this.type == 4) {
-            return Color.AnchorGreen;
-        } else if (this.type == 5) {
-            return Color.AnchorPurple;
-        } else if (this.type == 9) {
-            return Color.Exit;
-        } else {
-            return Color.AnchorWhite;
+        switch (this.type) {
+            case 2: return Color.Anchor.Red;
+            case 3: return Color.Anchor.Blue;
+            case 4: return Color.Anchor.Green;
+            case 5: return Color.Anchor.Purple;
+            case 9: return Color.Anchor.Exit;
+            default: return Color.Anchor.White;
         }
     }
     location() {
@@ -304,10 +310,9 @@ class SpinAnchor {
     detachWand(wi) {
         const i = this.wands.findIndex(i => wi == i);
         if (i >= 0) {
-            // console.log(`Removed ${wi} from ${this.x},${this.y}.`)
             this.wands.splice(i, 1)
         } else {
-            // console.log(`ERR: Tried to remove wand ${wi} from [${this.x},${this.y}] but it is not attached.`);
+            console.error(`Could not remove wand ${wi} from anchor.`);
         }
     }
     hasWand(wi) {
@@ -322,7 +327,7 @@ class SpinAnchor {
     }
     #getsColor() {
         if (this.type == 9) {
-            return `rgb(${Color.ExitBorder})`;
+            return `rgb(${Color.Anchor.ExitBorder})`;
         } else {
             return `rgb(${this.#getColor()})`
         }
@@ -365,25 +370,19 @@ class SpinWand {
         }
     }
     #getColor() {
-        if (this.type == 1) {
-            return Color.WandWhite;
-        } else if (this.type == 2) {
-            return Color.WandRed;
-        } else if (this.type == 3) {
-            return Color.WandBlue;
-        } else if (this.type == 4) {
-            return Color.WandGreen;
-        } else {
-            return Color.ERROR;
+        switch (this.type) {
+            case 1: return Color.Wand.White;
+            case 2: return Color.Wand.Red;
+            case 3: return Color.Wand.Blue;
+            case 4: return Color.Wand.Green;
+            default: return Color.ERROR;
         }
     }
     #getWidth() {
-        if (this.type == 1) {
-            return 4;
-        } else if (this.type == 2 || this.type == 3 || this.type == 4) {
-            return 2;
-        } else {
-            return 8; // error
+        switch (this.type) {
+            case 1: return 4;
+            case 2: case 3: case 4: return 2;
+            default: return 8; // error
         }
     }
     location() {
@@ -462,19 +461,19 @@ class SpinGate extends EventTarget {
         this.color = this.#getColor();
         this.endA = {x: sx, y: sy};
         this.endB = {x: ex, y: ey};
-        this.innerA = this.initInner();
-        this.innerB = this.initInner();
+        this.innerA = this.innerPoint();
+        this.innerB = this.innerPoint();
         this.closed = true;
         this.opening = false;
         this.closing = false;
     }
     #getColor() {
-        if (this.type == 1) {
-            return Color.GateRed;
-        } else if (this.type == 2) {
-            return Color.GateBlue;
+        switch(this.type) {
+            case 1: return Color.Gate.Red;
+            case 2: return Color.Gate.Blue;
+            case 3: return Color.Gate.Green;
+            default: return Color.ERROR;
         }
-        return Color.ERROR;
     }
     tick() {
         if (!(this.opening && this.closing)) return;
@@ -482,7 +481,7 @@ class SpinGate extends EventTarget {
         //   then set opening/closing to false.
         
     }
-    initInner() {
+    innerPoint() {
         if (this.endA.x == this.endB.x) {
             return { x: this.endAx, y: ((this.endA.y + this.endB.y) >> 1) };
         } else if (this.endA.y == this.endB.y) {
@@ -502,13 +501,47 @@ class SpinGate extends EventTarget {
     }
 }
 
+// TODO - Logic incomplete!
 class SpinField {
     /***
-     * Rectangle area, whose entering and exiting by the player
+     * Rectangle area button, whose entering and exiting by the player
      * triggers a specified behavior. 
      */
-    constructor() {
-        
+    constructor(type, x, y) {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.sprite = game.sprite.button[this.type].up;
+        this.lock = false;
+        this.timer = 0;
+    }
+    getRect() {
+        // return top left and bottom right corner vertices
+        return [{x: this.x - 16, y: this.y - 16}, {x: this.x + 16, y: this.y + 16 }];
+    }
+    tick() {
+        if (this.lock == true && this.timer > 0) {
+            this.timer -= 1;
+        } else {
+            this.depress();
+        }
+    }
+    press() {
+        // lock
+        this.lock = true;
+        // change image from up to down
+        this.sprite = game.sprite.button[this.type].down;
+        // send message to gate
+        game.state.gates.find(g => g.type == this.type).open(); // TODO fix me fix me fix me
+        // start down timer
+        this.timer = 100;
+    }
+    depress() {
+        this.lock = false;
+        this.sprite = game.sprite.button[this.type].up;
+    }
+    draw() {
+        game.ctx.drawImage(this.sprite, this.x - 16, this.y - 16, 32, 32);
     }
 }
 
@@ -522,7 +555,7 @@ class State {
         this.wands = [];
         this.walls = [];   
     }
-    load(l) {
+    loadLevel(l) {
         this.reset();
         this.levmeta.num = l.num;
         this.levmeta.title = l.title;
@@ -549,7 +582,7 @@ class State {
             this.walls.push(new SpinWall(w.x1, w.y1, w.x2, w.y2));
         }
     }
-    reset() { // clear existing stacks
+    reset() { // clear existing stacks in state
         while (this.anchors.length > 0) { this.anchors.pop(); }
         while (this.wands.length > 0) { this.wands.pop(); }
         while (this.walls.length > 0) { this.walls.pop(); }
@@ -606,7 +639,9 @@ class State {
         return this.anchors.findIndex(a => a.wands.some(wid => wid == wandId));
     }
     moveWand(wid, oid, tid) {
-
+        /***
+         * move WandID from anchor OriginID to anchor TargetID
+         */
         if (this.anchors[tid].type == 5) {
             const telMatch = this.anchors[tid].teleId % 10;
             tid = this.anchors.findIndex(a => a.teleId % 10 == telMatch && a.teleId != this.anchors[tid].teleId);
@@ -629,8 +664,10 @@ class State {
         }
     }
     processWands() {
+        /***
+         * Determine latch behavior for eligible enemy wands
+         */
         for (let i = 1; i < this.wands.length; i++) {
-
             if (this.wands[i].betweenRights()) continue;
             const originId = this.currentAnchorIdFor(i);
             const targetId = this.latchableAnchorIdFor(i);
@@ -656,6 +693,13 @@ var game = {
     bgcanvas: document.createElement("canvas"),
     offscreen: new OffscreenCanvas(SCALE * (MAX_WIDTH + 2), SCALE * (MAX_HEIGHT + 2)),
     state: new State(),
+    sprite: {
+        button: {
+            1: { up: null, down: null },
+            2: { up: null, down: null },
+            3: { up: null, down: null }
+        }
+    },
     start: function() {
         this.canvas.width = SCALE * (MAX_WIDTH + 2);
         this.canvas.height = SCALE * (MAX_HEIGHT + 2);
@@ -682,13 +726,31 @@ var game = {
         this.drawbg();
     },
     selectLevel: function(levelid) {
-        this.state.load(SpinLevels[levelid]);
+        this.state.loadLevel(SpinLevels[levelid]);
         this.canvas.focus();
         this.drawbg();
         this.startGameLoop();
     },
     offset: function(xy) { // for canvas draws, return integers
         return [~~(xy.x + SCALE + this.xos), ~~(xy.y + SCALE + this.yos)]
+    },
+    loadSprites: function() {
+        const btnImg = document.getElementById("buttSprite");
+        Promise.all([
+            createImageBitmap(btnImg, 0, 0, 32, 32),
+            createImageBitmap(btnImg, 32, 0, 32, 32),
+            createImageBitmap(btnImg, 0, 32, 32, 32),
+            createImageBitmap(btnImg, 32, 32, 32, 32),
+            createImageBitmap(btnImg, 0, 64, 32, 32),
+            createImageBitmap(btnImg, 32, 64, 32, 32)
+        ]).then((sprites) => {
+            this.sprite.button[1].up = sprites[0];
+            this.sprite.button[1].down = sprites[1];
+            this.sprite.button[2].up = sprites[2];
+            this.sprite.button[2].down = sprites[3];
+            this.sprite.button[3].up = sprites[4];
+            this.sprite.button[3].down = sprites[5];
+        });
     },
     clear: function() {
         this.ctx.clearRect(0, 0, this.offscreen.width, this.offscreen.height);
@@ -698,17 +760,9 @@ var game = {
         // TODO draw Animation frames
         // TODO draw Field objects and Gates
 
-        for (let i = 0; i < this.state.walls.length; i++) {
-            this.state.walls[i].draw();
-        }
-
-        for (let i = 0; i < this.state.wands.length; i++) {
-            this.state.wands[i].draw();
-        }
-
-        for (let i = 0; i < this.state.anchors.length; i++) {
-            this.state.anchors[i].draw();
-        }
+        this.state.walls.forEach(w => w.draw());
+        this.state.wands.forEach(w => w.draw());
+        this.state.anchors.forEach(a => a.draw());
 
         this.fgctx.drawImage(this.offscreen, 0, 0);
     },
@@ -757,7 +811,7 @@ var game = {
     },
     restart: function() {
         clearInterval(this.interval);
-        this.state.load(SpinLevels[this.state.levmeta.num]);
+        this.state.loadLevel(SpinLevels[this.state.levmeta.num]);
         this.startGameLoop();
     },
     gameOver: function () {
@@ -793,6 +847,8 @@ var game = {
 }
 
 function startGame() {
+    game.loadSprites();
+
     game.start();
 }
 
@@ -858,17 +914,17 @@ $(document).ready(function() {
     $('body').on("keydown", event => {
         if (game.state.wands.length < 1) return;
         switch (event.which) {
-            case 27:
+            case 27: // escape
                 game.openMenu(); break;
-            case 32:
+            case 32: // space
                 event.preventDefault();
                 SpinSound.switch.play();
                 game.state.wands[0].reverse(); break;
-            case 70:
+            case 70: // f
                 game.state.wands[0].controls.swing = true; break;
-            case 68:
+            case 68: // d
                 game.state.wands[0].controls.latch = true; break;
-            case 83:
+            case 83: // s
                 game.state.wands[0].controls.bounce = true; break;
             default:
                 break;
@@ -879,7 +935,7 @@ $(document).ready(function() {
         switch (event.which) {
             case 70: // f
                 game.state.wands[0].controls.swing = false; break;
-            case 68: //d
+            case 68: // d
                 game.state.wands[0].controls.latch = false; break;
             case 83: // s
                 game.state.wands[0].controls.bounce = false; break;
