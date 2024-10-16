@@ -302,13 +302,13 @@ class SpinAnchor {
     }
     attachWand(wi) {
         this.wands.push(wi);
-        if (this.ephemeral > 0 && this.ephlock == false) {
+        if (this.ephemeral > 0 && this.ephlock === false) {
             this.toggleEph();
         }
-        // TODO logic for POINT BONUS status if wi == 0
+        // TODO logic for POINT BONUS status if wi === 0
     }
     detachWand(wi) {
-        const i = this.wands.findIndex(i => wi == i);
+        const i = this.wands.findIndex(i => wi === i);
         if (i >= 0) {
             this.wands.splice(i, 1)
         } else {
@@ -316,17 +316,17 @@ class SpinAnchor {
         }
     }
     hasWand(wi) {
-        return (this.wands.some(w => w == wi))
+        return (this.wands.some(w => w === wi))
     }
     toggleEph() {
         this.ephlock = true;
         this.fcolor = `rgb(${Color.Wall})`
     }
     #getfColor() {
-        return this.ephemeral == MASK.EPHEM ? `rgba(${this.#getColor()},0)` : `rgb(${this.#getColor()})`;
+        return this.ephemeral === MASK.EPHEM ? `rgba(${this.#getColor()},0)` : `rgb(${this.#getColor()})`;
     }
     #getsColor() {
-        if (this.type == 9) {
+        if (this.type === 9) {
             return `rgb(${Color.Anchor.ExitBorder})`;
         } else {
             return `rgb(${this.#getColor()})`
@@ -338,7 +338,7 @@ class SpinAnchor {
         game.ctx.arc(...game.offset(this.location()), 4, 0, 2 * Math.PI);
         game.ctx.closePath();
         game.ctx.fill();
-        if (this.ephemeral == MASK.EPHEM || this.type == 9) {
+        if (this.ephemeral === MASK.EPHEM || this.type === 9) {
             game.ctx.lineWidth = 1;
             game.ctx.strokeStyle = this.scolor;
             game.ctx.stroke();
@@ -361,9 +361,9 @@ class SpinWand {
         this.controls = this.#getControl();
     }
     #getControl() {
-        if (this.type == 2) {
+        if (this.type === 2) {
             return { swing: true, latch: false, bounce: false };
-        } else if (this.type == 3) {
+        } else if (this.type === 3) {
             return { swing: false, latch: true, bounce: false };
         } else {
             return { swing: false, latch: false, bounce: false };
@@ -394,7 +394,7 @@ class SpinWand {
         this.desty = tmp.y;
     }
     getDest(short = 0) {
-        return (short == 0) ? {x: this.destx, y: this.desty} : destCoord(this.x, this.y, this.angle, this.length - short);
+        return (short === 0) ? {x: this.destx, y: this.desty} : destCoord(this.x, this.y, this.angle, this.length - short);
     }
     betweenRights() {
         return (~~this.angle % 90 < 85) && (~~this.angle % 90 > 5);
@@ -482,9 +482,9 @@ class SpinGate extends EventTarget {
         
     }
     innerPoint() {
-        if (this.endA.x == this.endB.x) {
+        if (this.endA.x === this.endB.x) {
             return { x: this.endAx, y: ((this.endA.y + this.endB.y) >> 1) };
-        } else if (this.endA.y == this.endB.y) {
+        } else if (this.endA.y === this.endB.y) {
             return { x: ((this.endA.x + this.endB.x) >> 1), y: this.endA.y }
         }
     }
@@ -520,7 +520,7 @@ class SpinField {
         return [{x: this.x - 16, y: this.y - 16}, {x: this.x + 16, y: this.y + 16 }];
     }
     tick() {
-        if (this.lock == true && this.timer > 0) {
+        if (this.lock === true && this.timer > 0) {
             this.timer -= 1;
         } else {
             this.depress();
@@ -532,7 +532,7 @@ class SpinField {
         // change image from up to down
         this.sprite = game.sprite.button[this.type].down;
         // send message to gate
-        game.state.gates.find(g => g.type == this.type).open(); // TODO fix me fix me fix me
+        game.state.gates.find(g => g.type === this.type).open(); // TODO fix me fix me fix me
         // start down timer
         this.timer = 100;
     }
@@ -563,7 +563,7 @@ class State {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
                     const anchor = new SpinAnchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
-                    const special = l.anchors.find(a => a.x == x && a.y == y && Object.keys(a).some(p => p == "teleId"));
+                    const special = l.anchors.find(a => a.x === x && a.y === y && Object.keys(a).some(p => p === "teleId"));
                     if (special) {
                         anchor.teleId = special.teleId;
                     }
@@ -575,7 +575,7 @@ class State {
             this.wands.push(new SpinWand(w.x, w.y, w.type));
         }
         for (let i = 0; i < this.wands.length; i++) {
-            const aid = this.anchors.findIndex(a => a.x == this.wands[i].x && a.y == this.wands[i].y);
+            const aid = this.anchors.findIndex(a => a.x === this.wands[i].x && a.y === this.wands[i].y);
             this.anchors[aid].attachWand(i);
         }
         for (const w of l.walls) {
@@ -593,7 +593,7 @@ class State {
     }
     playerHitsBad() {
         // If on same anchor, mark as hitting enemy if within same 80 degree sector 
-        let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w == 0));
+        let sharedAnchor = this.anchors.findIndex(a => a.wands.length > 1 && a.wands.some(w => w === 0));
         if (sharedAnchor > -1) {
             const angles = this.anchors[sharedAnchor].wands.map(wid => this.wands[wid].angle).sort((a,b) => a - b);
             if (angles[1] - angles[0] < 40 || angles[1] - angles[0] > 320) return true;
@@ -636,15 +636,15 @@ class State {
         return this.anchors.findIndex(v => areClose(v, this.wands[wandId].getDest()))
     }
     currentAnchorIdFor(wandId) {
-        return this.anchors.findIndex(a => a.wands.some(wid => wid == wandId));
+        return this.anchors.findIndex(a => a.wands.some(wid => wid === wandId));
     }
     moveWand(wid, oid, tid) {
         /***
          * move WandID from anchor OriginID to anchor TargetID
          */
-        if (this.anchors[tid].type == 5) {
+        if (this.anchors[tid].type === 5) {
             const telMatch = this.anchors[tid].teleId % 10;
-            tid = this.anchors.findIndex(a => a.teleId % 10 == telMatch && a.teleId != this.anchors[tid].teleId);
+            tid = this.anchors.findIndex(a => a.teleId % 10 === telMatch && a.teleId != this.anchors[tid].teleId);
         }
 
         const fromEph = this.anchors.findIndex(v => v.ephlock);
@@ -653,7 +653,7 @@ class State {
         this.wands[wid].setAnchor(this.anchors[tid].x, this.anchors[tid].y);
         this.anchors[tid].attachWand(wid);
 
-        if (wid == 0 && fromEph > -1) {
+        if (wid === 0 && fromEph > -1) {
             this.anchors.splice(fromEph, 1);
         }
 
@@ -672,7 +672,7 @@ class State {
             const originId = this.currentAnchorIdFor(i);
             const targetId = this.latchableAnchorIdFor(i);
             if (targetId > -1) {
-                if (this.anchors[targetId].type == this.wands[i].type) {
+                if (this.anchors[targetId].type === this.wands[i].type) {
                     if (this.wands[i].controls.swing || this.wands[i].controls.latch) {
                         this.moveWand(i, originId, targetId);
                     } else if (this.wands[i].controls.bounce) {
@@ -698,6 +698,14 @@ var game = {
             1: { up: null, down: null },
             2: { up: null, down: null },
             3: { up: null, down: null }
+        },
+        anchor: {
+            1: { default: null, eph: null, points: null },
+            2: { default: null, eph: null, points: null },
+            3: { default: null, eph: null, points: null },
+            4: { default: null, eph: null, points: null },
+            5: { default: null, eph: null, points: null },
+            9: { default: null, eph: null, points: null }
         }
     },
     start: function() {
@@ -750,6 +758,38 @@ var game = {
             this.sprite.button[2].down = sprites[3];
             this.sprite.button[3].up = sprites[4];
             this.sprite.button[3].down = sprites[5];
+        });
+        const aImg = document.getElementById("anchorSprite");
+        Promise.all([
+            createImageBitmap(aImg, 0, 0, 11, 11),   // white
+            createImageBitmap(aImg, 11, 0, 11, 11),
+            createImageBitmap(aImg, 22, 0, 11, 11),
+            createImageBitmap(aImg, 0, 11, 11, 11),  // red
+            createImageBitmap(aImg, 11, 11, 11, 11),
+            createImageBitmap(aImg, 22, 11, 11, 11),
+            createImageBitmap(aImg, 0, 22, 11, 11),  // blue
+            createImageBitmap(aImg, 11, 22, 11, 11),
+            createImageBitmap(aImg, 22, 22, 11, 11),
+            createImageBitmap(aImg, 0, 33, 11, 11),  // green
+            createImageBitmap(aImg, 11, 33, 11, 11),
+            createImageBitmap(aImg, 22, 33, 11, 11),
+            createImageBitmap(aImg, 0, 44, 11, 11), // tele
+            createImageBitmap(aImg, 0, 55, 11, 11), // exit
+        ]).then((sprites) => {
+            this.sprite.anchor[1].default = sprites[0];
+            this.sprite.anchor[1].eph = sprites[1];
+            this.sprite.anchor[1].points = sprites[2];
+            this.sprite.anchor[2].default = sprites[3];
+            this.sprite.anchor[2].eph = sprites[4];
+            this.sprite.anchor[2].points = sprites[5];
+            this.sprite.anchor[3].default = sprites[6];
+            this.sprite.anchor[3].eph = sprites[7];
+            this.sprite.anchor[3].points = sprites[8];
+            this.sprite.anchor[4].default = sprites[9];
+            this.sprite.anchor[4].eph = sprites[10];
+            this.sprite.anchor[4].points = sprites[11];
+            this.sprite.anchor[5].default = sprites[12];
+            this.sprite.anchor[9].default = sprites[13];
         });
     },
     clear: function() {
@@ -874,7 +914,7 @@ function updateGameArea() {
         const originIndex = game.state.currentAnchorIdFor(0);
         const target = game.state.anchors[targetIndex];
         if (game.state.wands[0].controls.swing || game.state.wands[0].controls.latch) {
-            if (target.type == 9) {
+            if (target.type === 9) {
                 SpinSound.win.play();
                 game.gameOver();
             } else {
