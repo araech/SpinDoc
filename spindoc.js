@@ -214,10 +214,10 @@ function clickLevel(num) {
     menu.className = menu.className === "hideme" ? "" : "hideme";
 }
 
-function destCoord(originx, originy, angle, length) {
+function destCoord(origin, angle, length) {
     return {
-        x: originx + Math.cos(Math.PI * angle / 180) * length,
-        y: originy + Math.sin(Math.PI * angle / 180) * length
+        x: origin.x + Math.cos(Math.PI * angle / 180) * length,
+        y: origin.y + Math.sin(Math.PI * angle / 180) * length
     };
 }
 function areClose(v1, v2) { // Are these two vertices close?
@@ -276,9 +276,11 @@ function lineCircleIntersect(as, ae, orig, rad) {
  */
 
 class SpinAnchor {
-    constructor(x, y, type, ephemeral, teleId = 0) {
-        this.x = SCALE * x;
-        this.y = SCALE * y;
+    constructor(origin, type, ephemeral, teleId = 0) {
+        this.base = {
+            x: SCALE * origin.x,
+            y: SCALE * origin.y
+        };
         this.type = type;
         this.ephemeral = ephemeral;
         this.ephlock = false;
@@ -296,9 +298,6 @@ class SpinAnchor {
             case 9: return Color.Anchor.Exit;
             default: return Color.Anchor.White;
         }
-    }
-    location() {
-        return { x: this.x, y: this.y };
     }
     attachWand(wi) {
         this.wands.push(wi);
@@ -335,7 +334,7 @@ class SpinAnchor {
     draw() {
         game.ctx.fillStyle = this.fcolor;
         game.ctx.beginPath();
-        game.ctx.arc(...game.offset(this.location()), 4, 0, 2 * Math.PI);
+        game.ctx.arc(...game.offset(this.base), 4, 0, 2 * Math.PI);
         game.ctx.closePath();
         game.ctx.fill();
         if (this.ephemeral === MASK.EPHEM || this.type === 9) {
@@ -347,11 +346,15 @@ class SpinAnchor {
 }
 
 class SpinWand {
-    constructor (x, y, type, angle = 0, speed = 1.5) {
-        this.x = SCALE * x;
-        this.y = SCALE * y;
-        this.destx = 0;
-        this.desty = 0;
+    constructor (origin, type, angle = 0, speed = 1.5) {
+        this.base = {
+            x: origin.x * SCALE,
+            y: origin.y * SCALE
+        };
+        this.dest = {
+            x: 0,
+            y: 0
+        };
         this.type = type;
         this.color = `rgb(${this.#getColor()})`;
         this.width = this.#getWidth();
@@ -385,23 +388,18 @@ class SpinWand {
             default: return 8; // error
         }
     }
-    location() {
-        return { x: this.x, y: this.y };
-    }
     updateDest() {
-        const tmp = destCoord(this.x, this.y, this.angle, this.length);
-        this.destx = tmp.x;
-        this.desty = tmp.y;
+        this.dest = destCoord(this.base, this.angle, this.length);
     }
     getDest(short = 0) {
-        return (short === 0) ? {x: this.destx, y: this.desty} : destCoord(this.x, this.y, this.angle, this.length - short);
+        return (short === 0) ? this.dest : destCoord(this.base, this.angle, this.length - short);
     }
     betweenRights() {
         return (~~this.angle % 90 < 85) && (~~this.angle % 90 > 5);
     }
-    setAnchor(x, y) {
-        this.x = x;
-        this.y = y;
+    setAnchor(vertex) { // assign seperately; may be vertex, may be anchor object
+        this.base.x = vertex.x;
+        this.base.y = vertex.y;
     }
     stepAngle(n = 1) { 
         this.angle = (this.angle + (this.speed * n) + 360) % 360;
@@ -419,8 +417,8 @@ class SpinWand {
         game.ctx.beginPath();
         game.ctx.strokeStyle = this.color;
         game.ctx.lineWidth = this.width;
-        game.ctx.moveTo(...game.offset(this.location()));
-        game.ctx.lineTo(...game.offset({x: this.destx, y: this.desty }));
+        game.ctx.moveTo(...game.offset(this.base));
+        game.ctx.lineTo(...game.offset(this.dest));
         game.ctx.closePath();
         game.ctx.stroke();
     }
@@ -562,8 +560,12 @@ class State {
         for (let y = 0; y < l.grid.length; y++) {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] > 0) {
-                    const anchor = new SpinAnchor(x, y, l.grid[y][x] & MASK.TYPE, l.grid[y][x] & MASK.EPHEM);
-                    const special = l.anchors.find(a => a.x === x && a.y === y && Object.keys(a).some(p => p === "teleId"));
+                    const anchor = new SpinAnchor(
+                        { x: x, y: y },
+                        l.grid[y][x] & MASK.TYPE,
+                        l.grid[y][x] & MASK.EPHEM);
+                    const special = l.anchors.find(a => a.x === x && a.y === y
+                        && Object.keys(a).some(p => p === "teleId"));
                     if (special) {
                         anchor.teleId = special.teleId;
                     }
@@ -572,10 +574,11 @@ class State {
             }
         }
         for (const w of l.wands) {
-            this.wands.push(new SpinWand(w.x, w.y, w.type));
+            this.wands.push(new SpinWand({ x: w.x, y: w.y }, w.type));
         }
         for (let i = 0; i < this.wands.length; i++) {
-            const aid = this.anchors.findIndex(a => a.x === this.wands[i].x && a.y === this.wands[i].y);
+            const aid = this.anchors.findIndex(a => a.base.x === this.wands[i].base.x
+                && a.base.y === this.wands[i].base.y);
             this.anchors[aid].attachWand(i);
         }
         for (const w of l.walls) {
@@ -601,15 +604,15 @@ class State {
 
         for (let i = 1; i < this.wands.length; i++) {
             // skip distant wands to avoid unncessary calculation
-            if (pointsFar(this.wands[0].location(), this.wands[i].location())) continue;
+            if (pointsFar(this.wands[0].base, this.wands[i].base)) continue;
             // enemy wands -- (2) argument shortens the length to avoid unintentional hits.
-            if (lineIntersect(this.wands[0].location(), this.wands[0].getDest(2),
-                                this.wands[i].location(), this.wands[i].getDest(2))) {
+            if (lineIntersect(this.wands[0].base, this.wands[0].getDest(2),
+                                this.wands[i].base, this.wands[i].getDest(2))) {
                 return true;
             }
-            // Are wands overlapping from adjacent anchors?
-            if (areClose(this.wands[0].location(), this.wands[i].getDest())
-                && areClose(this.wands[0].getDest(), this.wands[i].location())) {
+            // Are wands overlapping perfectly from adjacent anchors?
+            if (areClose(this.wands[0].base, this.wands[i].dest)
+                && areClose(this.wands[0].dest, this.wands[i].base)) {
                 return true;
             }
         }
@@ -621,7 +624,7 @@ class State {
     playerHitsBounceable() {
         // walls
         for (let i = 0; i < this.walls.length; i++) {
-            if (lineIntersect(this.wands[0].location(), this.wands[0].getDest(),
+            if (lineIntersect(this.wands[0].base, this.wands[0].dest,
                 this.walls[i].startxy(), this.walls[i].endxy())) {
                 // This call moves the wand back quickly to avoid clipping
                 this.wands[0].reverse(2);
@@ -633,7 +636,7 @@ class State {
         return false;
     }
     latchableAnchorIdFor(wandId) {
-        return this.anchors.findIndex(v => areClose(v, this.wands[wandId].getDest()))
+        return this.anchors.findIndex(a => areClose(a.base, this.wands[wandId].dest))
     }
     currentAnchorIdFor(wandId) {
         return this.anchors.findIndex(a => a.wands.some(wid => wid === wandId));
@@ -650,7 +653,7 @@ class State {
         const fromEph = this.anchors.findIndex(v => v.ephlock);
 
         this.anchors[oid].detachWand(wid);
-        this.wands[wid].setAnchor(this.anchors[tid].x, this.anchors[tid].y);
+        this.wands[wid].setAnchor(this.anchors[tid].base);
         this.anchors[tid].attachWand(wid);
 
         if (wid === 0 && fromEph > -1) {
@@ -828,15 +831,14 @@ var game = {
         this.bgctx.fillText("Score: 0", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
     drawDeathFrame: function() {
-        const dest = this.state.wands[0].getDest();
         const [cur, max] = [this.aniData.current, this.aniData.max];
         const width = ~~((this.state.wands[0].width + 2) * ((max - cur) / max));
         const [r, g, b] = [((max - cur) / max) > 0.5 ? 255 : 255 - ~~(cur / 2), 255 - cur, 255 - cur];
         this.fgctx.beginPath();  
         this.fgctx.strokeStyle = `rgba(${r},${g},${b},${(max - cur) / max})`;
         this.fgctx.lineWidth = width;
-        this.fgctx.moveTo(...this.offset(this.state.wands[0].location()));
-        this.fgctx.lineTo(...this.offset({x: dest.x, y: dest.y }));
+        this.fgctx.moveTo(...this.offset(this.state.wands[0].base));
+        this.fgctx.lineTo(...this.offset(this.state.wands[0].dest));
         this.fgctx.closePath();
         this.fgctx.stroke();
     },
