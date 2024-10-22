@@ -27,7 +27,9 @@ const SpinSound = {
     win: new Audio('snd/win.ogg'),
     lose: new Audio('snd/lose.ogg'),
     teleport: new Audio('snd/teleport.ogg'),
-    buttonclick: new Audio('snd/buttonpress.ogg')
+    buttonclick: new Audio('snd/buttonpress.ogg'),
+    gateswitch: new Audio('snd/gateswitch.ogg'),
+    points: new Audio('snd/points.ogg')
 }
 
 const Color = {
@@ -72,7 +74,8 @@ const SpinLevels = [
         wands: [],
         walls: [],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 1,
@@ -89,10 +92,13 @@ const SpinLevels = [
         wands: [
             {x: 2, y: 2, type: 1}
         ],
-        anchors: [],
+        anchors: [
+            {x: 4, y: 3, points: 1000}
+        ],
         walls: [],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 2,
@@ -115,19 +121,20 @@ const SpinLevels = [
             {x1: 5.5, y1: 0.8, x2: 5.5, y2: 3.8}
         ],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 3,
         title: "Ephemera",
         grid: [
-            [0,  0,  0, 0,  0, 0,  0, 0, 0],
-            [0,  0,  1, 1,  1, 0,  1, 1, 0],
-            [0,  1,  1, 1, 17, 0,  1, 1, 0],
-            [0,  1, 17, 1, 17, 1, 17, 1, 0],
-            [0,  1,  1, 0, 17, 1,  1, 1, 0],
-            [0,  9,  1, 0,  1, 1,  1, 0, 0],
-            [0,  0,  0, 0,  0, 0,  0, 0, 0]
+            [0,  0,  0, 0,  0, 0,   0, 0, 0],
+            [0,  0,  1, 1,  1, 0,   1, 1, 0],
+            [0,  1,  1, 1, 17, 0,   1, 1, 0],
+            [0,  1, 17, 1, 17, 17, 17, 1, 0],
+            [0,  1,  1, 0, 17, 17,  1, 1, 0],
+            [0,  9,  1, 0,  1, 1,   1, 0, 0],
+            [0,  0,  0, 0,  0, 0,   0, 0, 0]
         ],
         anchors: [],
         wands: [
@@ -135,7 +142,8 @@ const SpinLevels = [
         ],
         walls: [],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 4,
@@ -149,7 +157,11 @@ const SpinLevels = [
             [0, 3, 1, 1, 1, 1, 1, 1, 0],
             [0, 0, 0, 0, 0, 0, 1, 9, 0]
         ],
-        anchors: [],
+        anchors: [
+            {x: 4, y: 3, points: 2000},
+            {x: 7, y: 1, points: 2000},
+            {x: 1, y: 5, points: 2000}
+        ],
         wands: [
             {x: 1, y: 0, type: 1},
             {x: 4, y: 3, type: 4},
@@ -158,23 +170,28 @@ const SpinLevels = [
         ],
         walls: [],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 5,
         title: "Teleportation",
         grid: [
-            [0, 0, 1, 1, 1, 1, 1, 1, 1],
-            [0, 1, 1, 1, 1, 1, 1, 1, 9],
-            [0, 5, 1, 1, 3, 3, 1, 1, 1],
+            [0, 0, 5, 1, 0, 0, 1, 1, 1],
+            [0, 0, 1, 1, 1, 1, 1, 1, 9],
+            [0, 0, 0, 1, 3, 3, 1, 1, 1],
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 2, 2, 1, 1, 5, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 0, 0]
+            [1, 1, 1, 2, 2, 0, 0, 1, 5],
+            [1, 1, 1, 1, 1, 0, 0, 1, 1],
+            [1, 1, 1, 1, 5, 0, 0, 5, 1]
         ],
         anchors: [
-            {x: 1, y: 2, teleId:  1},
-            {x: 7, y: 4, teleId: 11}
+            {x: 4, y: 6, teleId:  1},
+            {x: 7, y: 6, teleId: 11},
+            {x: 8, y: 4, teleId:  2},
+            {x: 2, y: 0, teleId: 12},
+            {x: 4, y: 5, points: 1000},
+            {x: 3, y: 2, points: 1000}
         ],
         wands: [
             {x: 0, y: 5, type: 1},
@@ -183,7 +200,8 @@ const SpinLevels = [
         ],
         walls: [],
         fields: [],
-        gates: []
+        gates: [],
+        spikes: []
     },
     {
         num: 6,
@@ -215,8 +233,39 @@ const SpinLevels = [
             {x1: 6.5, y1: 1.8, x2: 6.5, y2: 4.2, type: 2},
             {x1: 4.5, y1: 1.8, x2: 4.5, y2: 4.2, type: 1}
 
-        ]
+        ],
+        spikes: []
     },
+    {
+        num: 7,
+        title: "Spikes",
+        grid: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 0, 0, 0, 1, 1, 0],
+            [0, 1, 1, 1, 1, 1, 1, 9, 0],
+            [0, 1, 1, 1, 1, 1, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 1, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ],
+        anchors: [],
+        wands: [
+            {x: 1, y: 2, type: 1}
+        ],
+        walls: [],
+        fields: [],
+        gates: [],
+        spikes: [
+            {x: 2.5, y: 2.8},
+            {x: 3.5, y: 2.8},
+            {x: 4.5, y: 2.8},
+            {x: 5.5, y: 2.8},
+            {x: 2.5, y: 4.2},
+            {x: 3.5, y: 4.2},
+            {x: 4.5, y: 4.2},
+            {x: 5.5, y: 4.2}
+        ]
+    }
 ];
 
 /***
@@ -290,6 +339,38 @@ function lineCircleIntersect(as, ae, orig, rad) {
  * Classes
  */
 
+class SpinSpike {
+    constructor(origin) {
+        this.base = {
+            x: SCALE * origin.x,
+            y: SCALE * origin.y
+        }
+    }
+    getRect() {
+        return [
+            { x: this.base.x - 3, y: this.base.y - 3},
+            { x: this.base.x + 3, y: this.base.y + 3}
+        ];
+    }
+    draw() {
+        let rect = this.getRect();
+        game.ctx.strokeStyle = "rgb(255, 220, 220)";
+        game.ctx.lineWidth = 1;
+        game.ctx.beginPath();
+        game.ctx.moveTo(...game.offset({x: rect[0].x, y: rect[0].y}));
+        game.ctx.lineTo(...game.offset({x: rect[1].x, y: rect[1].y}));
+        game.ctx.closePath();
+        game.ctx.stroke();
+        game.ctx.beginPath();
+        game.ctx.moveTo(...game.offset({x: rect[0].x, y: rect[1].y}));
+        game.ctx.lineTo(...game.offset({x: rect[1].x, y: rect[0].y}));
+        game.ctx.closePath();
+        game.ctx.stroke();
+        game.ctx.fillStyle = "rgb(240, 160, 160)";
+        game.ctx.fillRect(...game.offset({x: this.base.x - 2, y: this.base.y - 2}), 4, 4);
+    }
+}
+
 class SpinAnchor {
     /***
      * Create an anchor.
@@ -298,22 +379,37 @@ class SpinAnchor {
      * @param {number} ephemeral - Non-zero indicates ephemeral
      * @param {number} teleId - ids matching n%10 connect nodes
      */
-    constructor(origin, type, ephemeral, teleId = 0) {
+    constructor(origin, type, ephemeral, teleId = 0, points = 0) {
         this.base = {
             x: SCALE * origin.x,
             y: SCALE * origin.y
         };
         this.type = type;
         this.ephemeral = ephemeral;
+        this.teleId = teleId;
+        this.points = points;
         this.ephlock = false;
         this.sprite = this.#getSprite();
         this.fcolor = this.#getfColor();
         this.scolor = this.#getsColor();
         this.wands = [];
-        this.teleId = teleId; 
+        
     }
     #getSprite() {
-        return (this.ephemeral ? game.sprite.anchor[this.type].eph : game.sprite.anchor[this.type].default);
+        if (this.ephemeral) {
+            return game.sprite.anchor[this.type].eph;
+        } else if (this.points > 0) {
+            return game.sprite.anchor[this.type].points;
+        } else if (this.teleId > 0) {
+            switch (this.teleId % 10) {
+                case 1: return game.sprite.anchor[5].one;
+                case 2: return game.sprite.anchor[5].two;
+                case 3: return game.sprite.anchor[5].three;
+            }
+        } else {
+            return game.sprite.anchor[this.type].default;
+        }
+        
     }
     #getColor() {
         switch (this.type) {
@@ -330,7 +426,13 @@ class SpinAnchor {
         if (this.ephemeral > 0 && this.ephlock === false) {
             this.toggleEph();
         }
-        // TODO logic for POINT BONUS status if wi === 0
+        if (wi === 0 && this.points > 0) {
+            SpinSound.points.play();
+            game.state.points += this.points;
+            this.points = 0;
+            game.drawbg();
+            this.sprite = game.sprite.anchor[this.type].default;
+        }
     }
     detachWand(wi) {
         const i = this.wands.findIndex(i => wi === i);
@@ -589,11 +691,13 @@ class State {
             num: 0,
             title: ""
         }
+        this.points = 0;
         this.anchors = [];
         this.wands = [];
         this.walls = [];   
         this.fields = [];
         this.gates = [];
+        this.spikes = [];
     }
     loadLevel(l) {
         this.reset();
@@ -602,15 +706,23 @@ class State {
         for (let y = 0; y < l.grid.length; y++) {
             for (let x = 0; x < l.grid[0].length; x++) {
                 if (l.grid[y][x] == 0) continue;
+                let teleId = 0;
+                let points = 0;
+                let special = l.anchors.find(a => a.x === x && a.y === y);
+                if (special) {
+                    if (Object.keys(special).some(p => p === "teleId")) {
+                        teleId = special.teleId;
+                    }
+                    if (Object.keys(special).some(p => p === "points")) {
+                        points = special.points;
+                    }
+                }
                 const anchor = new SpinAnchor(
                     { x: x, y: y },
                     l.grid[y][x] & MASK.TYPE,
-                    l.grid[y][x] & MASK.EPHEM);
-                const special = l.anchors.find(a => a.x === x && a.y === y
-                    && Object.keys(a).some(p => p === "teleId"));
-                if (special) {
-                    anchor.teleId = special.teleId;
-                }
+                    l.grid[y][x] & MASK.EPHEM,
+                    teleId, points);
+                
                 this.anchors.push(anchor);
             }
         }
@@ -632,6 +744,9 @@ class State {
         for (const g of l.gates) {
             this.gates.push(new SpinGate(g.type, g.x1, g.y1, g.x2, g.y2));
         }
+        for (const s of l.spikes) {
+            this.spikes.push(new SpinSpike({ x: s.x, y: s.y}))
+        }
     }
     reset() { // clear existing stacks in state
         while (this.anchors.length) { this.anchors.pop(); }
@@ -639,6 +754,8 @@ class State {
         while (this.walls.length) { this.walls.pop(); }
         while (this.fields.length) { this.fields.pop(); }
         while (this.gates.length) { this.gates.pop(); }
+        while (this.spikes.length) { this.spikes.pop(); }
+        this.points = 0;
     }
     tick() {
         this.wands.forEach(w => w.stepAngle());
@@ -668,7 +785,13 @@ class State {
             }
         }
 
-        // other bad things?
+        for (let i = 0; i < this.spikes.length; i++) {
+            if (pointsFar(this.wands[0].base, this.spikes[i].base)) continue;
+            let rect = this.spikes[i].getRect();
+            if (lineRectIntersect(this.wands[0].base, this.wands[0].dest, rect[0], rect[1])) {
+                return true;
+            }
+        }
 
         return false;
     }
@@ -759,7 +882,6 @@ class State {
 /***
  * Game object
  */
-
 var game = {
     canvas: document.createElement("canvas"),
     bgcanvas: document.createElement("canvas"),
@@ -776,7 +898,7 @@ var game = {
             2: { default: null, eph: null, points: null },
             3: { default: null, eph: null, points: null },
             4: { default: null, eph: null, points: null },
-            5: { default: null, eph: null, points: null },
+            5: { one: null, two: null, three: null },
             9: { default: null, eph: null, points: null }
         }
     },
@@ -796,6 +918,7 @@ var game = {
         document.getElementById("stage").appendChild(this.bgcanvas);
         this.createMenuEntries();
         this.interval = 0;
+        this.score = 0;
 
         this.aniData = { // should be args?
             current: 0,
@@ -846,7 +969,9 @@ var game = {
             createImageBitmap(aImg, 11, 33, 11, 11),
             createImageBitmap(aImg, 22, 33, 11, 11),
             createImageBitmap(aImg, 0, 44, 11, 11), // tele
-            createImageBitmap(aImg, 0, 55, 11, 11), // exit
+            createImageBitmap(aImg, 11, 44, 11, 11),
+            createImageBitmap(aImg, 22, 44, 11, 11),
+            createImageBitmap(aImg, 0, 55, 11, 11) // exit
         ]).then((sprites) => {
             this.sprite.anchor[1].default = sprites[0];
             this.sprite.anchor[1].eph = sprites[1];
@@ -860,8 +985,10 @@ var game = {
             this.sprite.anchor[4].default = sprites[9];
             this.sprite.anchor[4].eph = sprites[10];
             this.sprite.anchor[4].points = sprites[11];
-            this.sprite.anchor[5].default = sprites[12];
-            this.sprite.anchor[9].default = sprites[13];
+            this.sprite.anchor[5].one = sprites[12];
+            this.sprite.anchor[5].two = sprites[13];
+            this.sprite.anchor[5].three = sprites[14];
+            this.sprite.anchor[9].default = sprites[15];
         });
     },
     clear: function() {
@@ -877,7 +1004,7 @@ var game = {
         this.state.fields.forEach(f => f.draw());
         this.state.wands.forEach(w => w.draw());
         this.state.anchors.forEach(a => a.draw());
-        
+        this.state.spikes.forEach(s => s.draw());
 
         this.fgctx.drawImage(this.offscreen, 0, 0);
     },
@@ -900,7 +1027,7 @@ var game = {
         this.bgctx.textAlign = "left";
         this.bgctx.fillText("Wands: ∞", 7, this.bgcanvas.height - 7);
         this.bgctx.textAlign = "right";
-        this.bgctx.fillText("Score: 0", this.bgcanvas.width - 7, this.bgcanvas.height - 7)
+        this.bgctx.fillText(`Score: ${this.score + this.state.points}`, this.bgcanvas.width - 7, this.bgcanvas.height - 7)
     },
     drawDeathFrame: function() {
         const [cur, max] = [this.aniData.current, this.aniData.max];
@@ -926,6 +1053,7 @@ var game = {
     restart: function() {
         clearInterval(this.interval);
         this.state.loadLevel(SpinLevels[this.state.levmeta.num]);
+        this.drawbg();
         this.startGameLoop();
     },
     gameOver: function () {
@@ -985,6 +1113,7 @@ function updateGameArea() {
 
     if (game.state.playerInField()) {
         SpinSound.buttonclick.play();
+        SpinSound.gateswitch.play();
     }
 
     const targetIndex = game.state.latchableAnchorIdFor(0);
@@ -993,6 +1122,7 @@ function updateGameArea() {
         const target = game.state.anchors[targetIndex];
         if (game.state.wands[0].controls.swing || game.state.wands[0].controls.latch) {
             if (target.type === 9) {
+                game.score += game.state.points;
                 SpinSound.win.play();
                 game.gameOver();
             } else {
